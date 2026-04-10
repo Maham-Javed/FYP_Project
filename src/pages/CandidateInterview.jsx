@@ -5,9 +5,11 @@ import { FiHome, FiUsers, FiClipboard, FiLogOut, FiArrowLeft } from 'react-icons
 const CandidateInterview = () => {
   const navigate = useNavigate();
   const [candidate, setCandidate] = useState({ firstName: 'Sara', lastName: 'Akram', email: 'saraakram@gmail.com' });
-  const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
   const [currentQuestion, setCurrentQuestion] = useState(1);
-  const totalQuestions = 6;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const totalQuestions = 10;
 
   useEffect(() => {
     // Load candidate profile
@@ -28,7 +30,7 @@ const CandidateInterview = () => {
 
   // Reset timer if question changes
   useEffect(() => {
-    setTimeLeft(120);
+    setTimeLeft(300);
   }, [currentQuestion]);
 
   const handleLogout = () => {
@@ -41,7 +43,11 @@ const CandidateInterview = () => {
       setCurrentQuestion(prev => prev + 1);
     } else {
       // Finished
-      navigate('/candidate-dashboard');
+      setIsSubmitting(true);
+      setShowToast(true);
+      setTimeout(() => {
+        navigate('/candidate-interview-score');
+      }, 3000);
     }
   };
 
@@ -52,9 +58,31 @@ const CandidateInterview = () => {
   };
 
   const initial = candidate.firstName.charAt(0).toUpperCase();
+  const displayNumbers = currentQuestion <= 5 ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10];
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#FFFFFF', fontFamily: "'Inter', sans-serif" }}>
+      {showToast && (
+        <div style={{
+          position: 'fixed', top: '30px', left: '50%', transform: 'translateX(-50%)',
+          background: '#FFFFFF', padding: '16px 24px', borderRadius: '12px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.12)', zIndex: 9999, display: 'flex',
+          alignItems: 'center', gap: '15px', borderLeft: '5px solid var(--primary-color)',
+          animation: 'slideDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+          minWidth: '340px'
+        }}>
+          <div style={{
+            background: 'var(--sidebar-active-bg)', color: 'var(--primary-color)', borderRadius: '50%', width: '28px', height: '28px',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', flexShrink: 0
+          }}>
+            ✓
+          </div>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ margin: 0, color: '#111', fontSize: '15px', fontWeight: 'bold' }}>Success</h4>
+            <p style={{ margin: '2px 0 0', color: '#4B5563', fontSize: '14px' }}>Interview has successfully submitted.</p>
+          </div>
+        </div>
+      )}
       
       {/* Sidebar */}
       <div style={{ 
@@ -179,16 +207,17 @@ const CandidateInterview = () => {
           {/* Progress Indicator */}
           <div style={{ padding: '30px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
             {/* The line connecting circles */}
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '380px', height: '2px', background: 'var(--primary-color)', zIndex: 0 }}></div>
+            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '300px', height: '2px', background: 'var(--primary-color)', zIndex: 0 }}></div>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', width: '400px', position: 'relative', zIndex: 1 }}>
-              {[1, 2, 3, 4, 5, 6].map(num => (
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '350px', position: 'relative', zIndex: 1 }}>
+              {displayNumbers.map(num => (
                 <div key={num} style={{ 
                   width: '45px', height: '45px', borderRadius: '50%', background: '#FFFFFF',
                   border: `2px solid var(--primary-color)`,
                   display: 'flex', justifyContent: 'center', alignItems: 'center',
                   fontSize: '16px', fontWeight: 'bold', color: '#111',
-                  boxShadow: num === currentQuestion ? '0 0 0 4px rgba(156, 137, 248, 0.2)' : 'none'
+                  boxShadow: num === currentQuestion ? '0 0 0 4px rgba(156, 137, 248, 0.2)' : 'none',
+                  transition: 'all 0.3s'
                 }}>
                   {num}
                 </div>
@@ -200,14 +229,15 @@ const CandidateInterview = () => {
           <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: '10px' }}>
             <button 
               onClick={handleNext}
+              disabled={isSubmitting}
               style={{
                 background: 'var(--primary-color)', color: 'white', border: 'none',
                 padding: '12px 60px', borderRadius: '30px', fontWeight: '500',
-                cursor: 'pointer', fontSize: '16px', transition: 'all 0.2s',
-                boxShadow: '0 4px 15px rgba(156, 137, 248, 0.4)'
+                cursor: isSubmitting ? 'not-allowed' : 'pointer', fontSize: '16px', transition: 'all 0.2s',
+                boxShadow: '0 4px 15px rgba(156, 137, 248, 0.4)', opacity: isSubmitting ? 0.7 : 1
               }}
             >
-              {currentQuestion === totalQuestions ? 'Submit' : 'Next'}
+              {isSubmitting ? 'Submitting...' : (currentQuestion === totalQuestions ? 'Submit' : 'Next')}
             </button>
           </div>
 

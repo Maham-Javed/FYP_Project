@@ -52,7 +52,7 @@ const CandidateInterviewInfo = () => {
 
         <div style={{ display: 'flex', gap: '40px', marginBottom: '30px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', margin: 0 }}>
-            Interview Duration: <span style={{ fontWeight: 'normal', color: '#444', marginLeft: '10px' }}>25-30min</span>
+            Interview Duration: <span style={{ fontWeight: 'normal', color: '#444', marginLeft: '10px' }}>50 min</span>
           </h3>
         </div>
 

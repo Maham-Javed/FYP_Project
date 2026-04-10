@@ -16,6 +16,7 @@ import CandidateJobApply from './pages/CandidateJobApply';
 import CandidateAppliedJobs from './pages/CandidateAppliedJobs';
 import CandidateInterviewInfo from './pages/CandidateInterviewInfo';
 import CandidateInterview from './pages/CandidateInterview';
+import CandidateInterviewScore from './pages/CandidateInterviewScore';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
         <Route path="/candidate-applied-jobs" element={<CandidateAppliedJobs />} />
         <Route path="/candidate-interview-info" element={<CandidateInterviewInfo />} />
         <Route path="/candidate-interview" element={<CandidateInterview />} />
+        <Route path="/candidate-interview-score" element={<CandidateInterviewScore />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
