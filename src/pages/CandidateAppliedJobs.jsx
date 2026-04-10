@@ -178,7 +178,7 @@ const CandidateAppliedJobs = () => {
                 <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>SQL Developer</td>
                 <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>11-03</td>
                 <td style={{ padding: '15px 10px', fontSize: '14px' }}>
-                  <a href="#" style={{ color: 'var(--primary-color)', textDecoration: 'underline' }}>View Details</a>
+                  <button onClick={() => navigate('/candidate-interview-info')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}>View Details</button>
                 </td>
               </tr>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
@@ -186,7 +186,7 @@ const CandidateAppliedJobs = () => {
                 <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>UI Developer</td>
                 <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>18-04</td>
                 <td style={{ padding: '15px 10px', fontSize: '14px' }}>
-                  <a href="#" style={{ color: 'var(--primary-color)', textDecoration: 'underline' }}>View Details</a>
+                  <button onClick={() => navigate('/candidate-interview-info')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}>View Details</button>
                 </td>
               </tr>
             </tbody>
