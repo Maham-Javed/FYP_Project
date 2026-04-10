@@ -33,12 +33,7 @@ const CandidateJobDetail = () => {
   };
 
   const handleApply = () => {
-    setIsApplying(true);
-    setTimeout(() => {
-      // In a real app we would update the job's applied count here
-      setIsApplying(false);
-      navigate('/candidate-dashboard');
-    }, 1500);
+    navigate('/candidate-job-apply', { state: { job } });
   };
 
   // Avatar initial

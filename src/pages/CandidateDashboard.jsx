@@ -6,6 +6,10 @@ const CandidateDashboard = () => {
   const navigate = useNavigate();
   const [candidate, setCandidate] = useState({ firstName: 'Sara', lastName: 'Akram', email: 'saraakram@gmail.com' });
   const [jobs, setJobs] = useState([]);
+  
+  // Search and Filter State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilters, setActiveFilters] = useState([]);
 
   useEffect(() => {
     // Load candidate data
@@ -30,8 +34,38 @@ const CandidateDashboard = () => {
     navigate('/');
   };
 
+  const toggleFilter = (filter) => {
+    if (activeFilters.includes(filter)) {
+      setActiveFilters(activeFilters.filter((f) => f !== filter));
+    } else {
+      setActiveFilters([...activeFilters, filter]);
+    }
+  };
+
   // Avatar initial
   const initial = candidate.firstName.charAt(0).toUpperCase();
+
+  // Filter Logic
+  const filteredJobs = jobs.filter((job) => {
+    const jobString = `${job.title} ${job.description} ${job.location} ${job.skills} ${job.experience}`.toLowerCase();
+    
+    // Check Search Term
+    const matchesSearch = jobString.includes(searchTerm.toLowerCase());
+    
+    // Check Active Filters (If filters exist, job must match at least one of the active filters)
+    let matchesFilter = true;
+    if (activeFilters.length > 0) {
+      matchesFilter = activeFilters.some(filter => jobString.includes(filter.toLowerCase()));
+    }
+    
+    return matchesSearch && matchesFilter;
+  });
+
+  const filterOptions = {
+    Skills: ["HTML", "React", "Node", "JavaScript"],
+    Experience: ["1-3 years", "2-4 Years", "1 Year"],
+    Location: ["Karachi", "Lahore", "Islamabad"]
+  };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#FFFFFF', fontFamily: "'Inter', sans-serif" }}>
@@ -42,7 +76,6 @@ const CandidateDashboard = () => {
         padding: '30px 0'
       }}>
         <div style={{ padding: '0 30px', marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Mock Logo */}
           <div style={{ 
             width: '40px', height: '40px', background: 'var(--sidebar-active-bg)', borderRadius: '8px',
             display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--primary-color)',
@@ -106,10 +139,12 @@ const CandidateDashboard = () => {
             <FiSearch size={20} color="#9CA3AF" style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)' }} />
             <input 
               type="text" 
-              placeholder="Search" 
+              placeholder="Search by job title, skills, or keywords..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               style={{
                 width: '100%', padding: '15px 45px', borderRadius: '25px', border: 'none',
-                background: '#F3F4F6', fontSize: '16px', outline: 'none'
+                background: '#F3F4F6', fontSize: '16px', outline: 'none', color: '#111'
               }}
             />
           </div>
@@ -124,11 +159,13 @@ const CandidateDashboard = () => {
               Recommended For You
             </h2>
             
-            {jobs.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#6B7280', marginTop: '40px' }}>No jobs created by recruiters yet.</p>
+            {filteredJobs.length === 0 ? (
+              <p style={{ textAlign: 'center', color: '#6B7280', marginTop: '40px' }}>
+                {jobs.length === 0 ? "No jobs created by recruiters yet." : "No jobs match your search or filters."}
+              </p>
             ) : (
                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '25px' }}>
-                 {jobs.map((job) => (
+                 {filteredJobs.map((job) => (
                    <div key={job.id || Math.random()} 
                      onClick={() => navigate('/candidate-job', { state: { job } })}
                      style={{
@@ -157,41 +194,41 @@ const CandidateDashboard = () => {
             borderTopLeftRadius: '30px', border: '1px solid #E5E7EB', borderRight: 'none', borderBottom: 'none',
             background: '#FAFAFA'
           }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 'bold', margin: '30px 0', color: '#111' }}>Filter</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '30px 0' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0, color: '#111' }}>Filter</h3>
+              {activeFilters.length > 0 && (
+                <button onClick={() => setActiveFilters([])} style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>
+                  Clear
+                </button>
+              )}
+            </div>
             
-            {/* Skills */}
-            <div style={{ marginBottom: '30px' }}>
-              <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', marginBottom: '15px' }}>Skills</h4>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                <span style={{ padding: '8px 16px', background: 'var(--sidebar-active-bg)', color: '#4B5563', borderRadius: '20px', fontSize: '13px', fontWeight: '500' }}>Job title</span>
-                <span style={{ padding: '8px 16px', background: 'var(--sidebar-active-bg)', color: '#4B5563', borderRadius: '20px', fontSize: '13px', fontWeight: '500' }}>Job title</span>
-                <span style={{ padding: '8px 16px', background: 'var(--sidebar-active-bg)', color: '#4B5563', borderRadius: '20px', fontSize: '13px', fontWeight: '500' }}>Job title</span>
-                <span style={{ padding: '8px 16px', color: 'var(--primary-color)', fontSize: '13px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>See all</span>
+            {Object.keys(filterOptions).map((category) => (
+              <div key={category} style={{ marginBottom: '30px' }}>
+                <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', marginBottom: '15px' }}>{category}</h4>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                  {filterOptions[category].map((item) => {
+                    const isActive = activeFilters.includes(item);
+                    return (
+                      <span 
+                        key={item}
+                        onClick={() => toggleFilter(item)}
+                        style={{ 
+                          padding: '8px 16px', 
+                          background: isActive ? 'var(--primary-color)' : 'var(--sidebar-active-bg)', 
+                          color: isActive ? '#FFFFFF' : '#4B5563', 
+                          borderRadius: '20px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {item}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-
-            {/* Experience */}
-            <div style={{ marginBottom: '30px' }}>
-              <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', marginBottom: '15px' }}>Experience</h4>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                <span style={{ padding: '8px 16px', background: 'var(--sidebar-active-bg)', color: '#4B5563', borderRadius: '20px', fontSize: '13px', fontWeight: '500' }}>1-2 Year</span>
-                <span style={{ padding: '8px 16px', background: 'var(--sidebar-active-bg)', color: '#4B5563', borderRadius: '20px', fontSize: '13px', fontWeight: '500' }}>2-4 Years</span>
-                <span style={{ padding: '8px 16px', background: 'var(--sidebar-active-bg)', color: '#4B5563', borderRadius: '20px', fontSize: '13px', fontWeight: '500' }}>1 Year</span>
-                <span style={{ padding: '8px 16px', color: 'var(--primary-color)', fontSize: '13px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>See all</span>
-              </div>
-            </div>
-
-            {/* Location */}
-            <div>
-              <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', marginBottom: '15px' }}>Location</h4>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                <span style={{ padding: '8px 16px', background: 'var(--sidebar-active-bg)', color: '#4B5563', borderRadius: '20px', fontSize: '13px', fontWeight: '500' }}>Karachi</span>
-                <span style={{ padding: '8px 16px', background: 'var(--sidebar-active-bg)', color: '#4B5563', borderRadius: '20px', fontSize: '13px', fontWeight: '500' }}>Lahore</span>
-                <span style={{ padding: '8px 16px', background: 'var(--sidebar-active-bg)', color: '#4B5563', borderRadius: '20px', fontSize: '13px', fontWeight: '500' }}>Islamabad</span>
-                <span style={{ padding: '8px 16px', color: 'var(--primary-color)', fontSize: '13px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>See all</span>
-              </div>
-            </div>
-
+            ))}
+            
           </div>
         </div>
 

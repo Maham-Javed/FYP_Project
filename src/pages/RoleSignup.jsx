@@ -30,7 +30,8 @@ const RoleSignup = () => {
       localStorage.setItem('xenon_candidate', JSON.stringify({
         firstName: formData.firstName || 'Sara',
         lastName: formData.lastName || 'Akram',
-        email: formData.email || 'saraakram@gmail.com'
+        email: formData.email || 'saraakram@gmail.com',
+        cvFilename: cvFile ? cvFile.name : ''
       }));
     }
     // Show success popup
