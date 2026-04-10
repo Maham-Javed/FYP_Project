@@ -28,7 +28,16 @@ const PostJob = () => {
     
     // Add new job (with 0 applied/shortlisted stats initially)
     const newJob = {
+      id: Date.now().toString(),
       title: formData.title || 'Untitled Job',
+      description: formData.description || 'No description provided for this job. This is a generic default message.',
+      careerLevel: formData.careerLevel || '',
+      positions: formData.positions || '',
+      skills: formData.skills || 'HTML, CSS, JavaScript, React',
+      location: formData.location || 'Karachi',
+      qualification: formData.qualification || 'Bachelors',
+      experience: formData.experience || '1-3 years',
+      threshold: formData.threshold || '70%',
       applied: 0,
       shortlisted: 0,
       topScorer: 0

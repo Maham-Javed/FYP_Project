@@ -10,6 +10,8 @@ import Candidates from './pages/Candidates';
 import TopScorers from './pages/TopScorers';
 import CandidateDetails from './pages/CandidateDetails';
 import Dashboard from './pages/Dashboard';
+import CandidateDashboard from './pages/CandidateDashboard';
+import CandidateJobDetail from './pages/CandidateJobDetail';
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
         <Route path="/top-scorers" element={<TopScorers />} />
         <Route path="/candidate-details" element={<CandidateDetails />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/candidate-dashboard" element={<CandidateDashboard />} />
+        <Route path="/candidate-job" element={<CandidateJobDetail />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

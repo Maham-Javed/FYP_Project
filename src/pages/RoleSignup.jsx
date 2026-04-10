@@ -7,6 +7,16 @@ const RoleSignup = () => {
   const [cvFile, setCvFile] = useState(null);
   const [isSignIn, setIsSignIn] = useState(false);
   const [popupMessage, setPopupMessage] = useState('');
+  
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: ''
+  });
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -16,13 +26,20 @@ const RoleSignup = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!isSignIn) {
+      localStorage.setItem('xenon_candidate', JSON.stringify({
+        firstName: formData.firstName || 'Sara',
+        lastName: formData.lastName || 'Akram',
+        email: formData.email || 'saraakram@gmail.com'
+      }));
+    }
     // Show success popup
     setPopupMessage(`Successfully ${isSignIn ? 'Sign in' : 'Sign up'} as a candidate`);
   };
 
   const closePopup = () => {
     setPopupMessage('');
-    navigate('/dashboard');
+    navigate('/candidate-dashboard');
   };
 
   useEffect(() => {
@@ -80,18 +97,18 @@ const RoleSignup = () => {
             <div style={{ display: 'flex', gap: '15px' }}>
               <div className="form-group" style={{ flex: 1 }}>
                 <label>First Name</label>
-                <input required type="text" className="form-input" placeholder="eg: Sara" />
+                <input name="firstName" onChange={handleChange} required type="text" className="form-input" placeholder="eg: Sara" />
               </div>
               <div className="form-group" style={{ flex: 1 }}>
                 <label>Last Name</label>
-                <input required type="text" className="form-input" placeholder="eg: Akram" />
+                <input name="lastName" onChange={handleChange} required type="text" className="form-input" placeholder="eg: Akram" />
               </div>
             </div>
           )}
           
           <div className="form-group">
             <label>Email</label>
-            <input required type="email" className="form-input" placeholder="eg: saraakram@gmail.com" />
+            <input name="email" onChange={handleChange} required type="email" className="form-input" placeholder="eg: saraakram@gmail.com" />
           </div>
           
           <div className="form-group">
