@@ -75,6 +75,7 @@ const CandidateInterviewInfo = () => {
         
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px' }}>
           <button 
+            onClick={() => navigate('/candidate-interview')}
             style={{
               background: 'var(--primary-color)', color: 'white', border: 'none',
               padding: '14px 45px', borderRadius: '30px', fontWeight: '600',
