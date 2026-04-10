@@ -6,6 +6,7 @@ const CandidateDetails = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
   const [jobDesc, setJobDesc] = useState('');
+  const [popupMessage, setPopupMessage] = useState('');
 
   const cand = state?.cand;
 
@@ -22,6 +23,21 @@ const CandidateDetails = () => {
     }
   }, [cand, navigate]);
 
+  const closePopup = () => {
+    setPopupMessage('');
+    navigate('/top-scorers');
+  };
+
+  useEffect(() => {
+    let timer;
+    if (popupMessage) {
+      timer = setTimeout(() => {
+        closePopup();
+      }, 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [popupMessage]);
+
   if (!cand) return null;
 
   // Make avatar initials
@@ -34,8 +50,47 @@ const CandidateDetails = () => {
   const cvMatching = (cand.score - 5).toFixed(1);
   const interviewScore = (cand.score - 2).toFixed(1);
 
+  const handleAction = (action) => {
+    const msg = action === 'accept' 
+      ? `Accepting Email send to the ${cand.name}` 
+      : `Rejecting Email send to the ${cand.name}`;
+    setPopupMessage(msg);
+  };
+
   return (
     <div className="auth-container">
+      {/* Toast Notification */}
+      {popupMessage && (
+        <div style={{
+          position: 'fixed', top: '30px', left: '50%', transform: 'translateX(-50%)',
+          background: '#FFFFFF', padding: '16px 24px', borderRadius: '12px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.12)', zIndex: 9999, display: 'flex',
+          alignItems: 'center', gap: '15px', borderLeft: '5px solid var(--primary-color)',
+          animation: 'slideDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+          minWidth: '320px'
+        }}>
+          <div style={{
+            background: 'var(--sidebar-active-bg)', color: 'var(--primary-color)', borderRadius: '50%', width: '28px', height: '28px',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', flexShrink: 0
+          }}>
+            ✓
+          </div>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ margin: 0, color: '#111', fontSize: '15px', fontWeight: 'bold' }}>Success</h4>
+            <p style={{ margin: '2px 0 0', color: '#4B5563', fontSize: '14px' }}>{popupMessage}</p>
+          </div>
+          <button 
+            onClick={closePopup} 
+            style={{ 
+              background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', 
+              color: '#9CA3AF', padding: '0 5px' 
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="auth-card" style={{ maxWidth: '500px', animation: 'slideInRight 0.5s ease-out forwards', position: 'relative' }}>
         
         {/* Back button */}
@@ -83,10 +138,10 @@ const CandidateDetails = () => {
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-          <button onClick={() => navigate('/top-scorers')} className="btn-primary" style={{ padding: '12px 30px', width: '140px', textAlign: 'center' }}>
+          <button onClick={() => handleAction('accept')} className="btn-primary" style={{ padding: '12px 30px', width: '140px', textAlign: 'center' }}>
             Accept
           </button>
-          <button onClick={() => navigate('/top-scorers')} className="btn-primary" style={{ padding: '12px 30px', width: '140px', textAlign: 'center' }}>
+          <button onClick={() => handleAction('reject')} className="btn-primary" style={{ padding: '12px 30px', width: '140px', textAlign: 'center' }}>
             Reject
           </button>
         </div>
