@@ -73,7 +73,7 @@ const CandidateJobDetail = () => {
           <div style={{ 
             display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 30px', 
             color: '#4B5563', cursor: 'pointer'
-          }}>
+          }} onClick={() => navigate('/candidate-applied-jobs')}>
             <FiUsers size={22} />
             <span style={{ fontWeight: '500', fontSize: '16px' }}>Applied Jobs</span>
           </div>

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const CandidateJobApply = () => {
   const navigate = useNavigate();
+  const { state } = useLocation();
+  const job = state?.job;
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -16,6 +19,11 @@ const CandidateJobApply = () => {
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
+    if (!job) {
+      navigate('/candidate-dashboard');
+      return;
+    }
+
     // Populate known data from localStorage
     const candData = localStorage.getItem('xenon_candidate');
     if (candData) {
@@ -32,7 +40,7 @@ const CandidateJobApply = () => {
         }
       } catch (e) {}
     }
-  }, []);
+  }, [job, navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -49,9 +57,33 @@ const CandidateJobApply = () => {
     e.preventDefault();
     setIsApplying(true);
     
-    // Simulate application process
+    // Simulate application process and save application
     setTimeout(() => {
-      // Could push to a stored applications list here
+      // 1. Save application to Candidate's Application List
+      const existingApps = JSON.parse(localStorage.getItem('xenon_applications') || '[]');
+      const newApp = {
+        id: Date.now().toString(),
+        jobId: job.id,
+        title: job.title,
+        company: 'Xenon Corp', // Mock company
+        status: 'Applied',
+        appliedAt: new Date().toISOString(),
+        candidateName: `${formData.firstName} ${formData.lastName}`,
+        candidateEmail: formData.email,
+        experience: 'N/A' // To match UI loosely
+      };
+      localStorage.setItem('xenon_applications', JSON.stringify([...existingApps, newApp]));
+
+      // 2. Increment Applied count on Recruiter's Job Board
+      const existingJobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
+      const updatedJobs = existingJobs.map(j => {
+         if (j.id === job.id || j.title === job.title) {
+            return { ...j, applied: (j.applied || 0) + 1 };
+         }
+         return j;
+      });
+      localStorage.setItem('xenon_jobs', JSON.stringify(updatedJobs));
+
       setIsApplying(false);
       setShowToast(true);
       setTimeout(() => {

@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import CandidateDashboard from './pages/CandidateDashboard';
 import CandidateJobDetail from './pages/CandidateJobDetail';
 import CandidateJobApply from './pages/CandidateJobApply';
+import CandidateAppliedJobs from './pages/CandidateAppliedJobs';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
         <Route path="/candidate-dashboard" element={<CandidateDashboard />} />
         <Route path="/candidate-job" element={<CandidateJobDetail />} />
         <Route path="/candidate-job-apply" element={<CandidateJobApply />} />
+        <Route path="/candidate-applied-jobs" element={<CandidateAppliedJobs />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

@@ -19,8 +19,27 @@ const JobDetails = () => {
 
   const handleDelete = () => {
     const jobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
+    const jobToDelete = jobs[id];
+    
+    // Remove job from recruiter dashboard
     jobs.splice(id, 1);
     localStorage.setItem('xenon_jobs', JSON.stringify(jobs));
+    
+    // Remove any submitted applications from candidates associated with this job
+    if (jobToDelete) {
+      const existingApps = JSON.parse(localStorage.getItem('xenon_applications') || '[]');
+      const updatedApps = existingApps.filter(app => {
+        // Find match by strong ID, or explicitly matching exact Title just to be sure
+        const matchById = jobToDelete.id && app.jobId === jobToDelete.id;
+        const matchByTitle = app.title === jobToDelete.title;
+        return !(matchById || matchByTitle);
+      });
+      localStorage.setItem('xenon_applications', JSON.stringify(updatedApps));
+      
+      // Also manually fire a localStorage event so other tabs/components update automatically if needed
+      window.dispatchEvent(new Event('storage'));
+    }
+
     navigate('/dashboard');
   };
 

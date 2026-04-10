@@ -33,6 +33,16 @@ const Candidates = () => {
     const loadedJobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
     setJobs(loadedJobs);
 
+    // Load actual submitted applications
+    const realApps = JSON.parse(localStorage.getItem('xenon_applications') || '[]');
+    const realCandidates = realApps.map(app => ({
+      name: app.candidateName || 'Unknown Applicant',
+      email: app.candidateEmail || 'N/A',
+      experience: '1-2 Year', // Stub to match UI
+      jobPosition: app.title || 'Untitled',
+      status: 'Applied'
+    }));
+
     // If there are specific jobs, assign the mock candidates to them cyclically
     if (loadedJobs.length > 0) {
       const mappedCandidates = MOCK_CANDIDATES_BASE.map((cand, index) => {
@@ -42,9 +52,10 @@ const Candidates = () => {
           jobPosition: assignedJob.title || 'Untitled Job',
         };
       });
-      setCandidates(mappedCandidates);
+      // Combine real candidates dynamically at the top with mock data filling the rest
+      setCandidates([...realCandidates, ...mappedCandidates]);
     } else {
-      setCandidates([]); // No candidates if no jobs posted
+      setCandidates(realCandidates); // No jobs posted, just show any existing real ones (rare bug fallback)
     }
   }, []);
 
