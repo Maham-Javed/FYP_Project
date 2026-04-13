@@ -18,7 +18,7 @@ const TopScorers = () => {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [topCandidates, setTopCandidates] = useState([]);
-  
+
   const [selectedJobs, setSelectedJobs] = useState([]);
   const [selectedExps, setSelectedExps] = useState([]);
 
@@ -37,7 +37,7 @@ const TopScorers = () => {
     if (loadedJobs.length > 0) {
       const allMapped = MOCK_CANDIDATES_BASE.map((cand, index) => {
         const assignedJob = loadedJobs[index % loadedJobs.length];
-        
+
         // Parse the threshold (e.g., '75%' -> 75)
         let thresholdVal = 0;
         if (assignedJob.threshold) {
@@ -60,13 +60,13 @@ const TopScorers = () => {
   }, []);
 
   const toggleJobFilter = (jobTitle) => {
-    setSelectedJobs(prev => 
+    setSelectedJobs(prev =>
       prev.includes(jobTitle) ? prev.filter(j => j !== jobTitle) : [...prev, jobTitle]
     );
   };
 
   const toggleExpFilter = (exp) => {
-    setSelectedExps(prev => 
+    setSelectedExps(prev =>
       prev.includes(exp) ? prev.filter(e => e !== exp) : [...prev, exp]
     );
   };
@@ -95,8 +95,8 @@ const TopScorers = () => {
         background: 'white'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 30px', marginBottom: '30px' }}>
-          <div style={{ 
-            width: '40px', height: '40px', border: '1px solid #ddd', 
+          <div style={{
+            width: '40px', height: '40px', border: '1px solid #ddd',
             borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center',
             fontWeight: 'bold', fontSize: '18px', color: '#111'
           }}>
@@ -106,7 +106,7 @@ const TopScorers = () => {
         </div>
 
         <div style={{ padding: '0 30px', marginBottom: '20px' }}>
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)' }}/>
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)' }} />
         </div>
 
         <div style={{ padding: '0 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -121,8 +121,8 @@ const TopScorers = () => {
               {jobs.map((job, idx) => {
                 const isActive = selectedJobs.includes(job.title);
                 return (
-                  <button 
-                    key={idx} 
+                  <button
+                    key={idx}
                     onClick={() => toggleJobFilter(job.title)}
                     style={{
                       padding: '8px 12px', borderRadius: '15px', border: 'none',
@@ -135,7 +135,7 @@ const TopScorers = () => {
                   </button>
                 );
               })}
-              {jobs.length === 0 && <span style={{fontSize:'12px', color:'#999'}}>No jobs posted</span>}
+              {jobs.length === 0 && <span style={{ fontSize: '12px', color: '#999' }}>No jobs posted</span>}
             </div>
           </div>
 
@@ -145,8 +145,8 @@ const TopScorers = () => {
               {EXPERIENCES.map((exp, idx) => {
                 const isActive = selectedExps.includes(exp);
                 return (
-                  <button 
-                    key={idx} 
+                  <button
+                    key={idx}
                     onClick={() => toggleExpFilter(exp)}
                     style={{
                       padding: '8px 12px', borderRadius: '15px', border: 'none',
@@ -165,11 +165,11 @@ const TopScorers = () => {
 
         {/* User Profile at bottom */}
         <div style={{ padding: '0 30px', marginTop: '20px' }}>
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', marginBottom: '20px' }}/>
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', marginBottom: '20px' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ 
-                width: '40px', height: '40px', background: '#8B4513', color: 'white', 
+              <div style={{
+                width: '40px', height: '40px', background: '#8B4513', color: 'white',
                 borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center',
                 fontWeight: '600'
               }}>
@@ -195,15 +195,15 @@ const TopScorers = () => {
             Top Scorers
           </h1>
         </div>
-        
-        <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', marginBottom: '40px' }}/>
+
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', marginBottom: '40px' }} />
 
         {/* Top Scorers Table Card */}
         <div style={{
-          border: '2px solid #E2D9FC', borderRadius: '24px', background: 'white', padding: '0', 
+          border: '2px solid #E2D9FC', borderRadius: '24px', background: 'white', padding: '0',
           overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.02)'
         }}>
-          
+
           {filteredCandidates.length === 0 ? (
             <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-light)' }}>
               No candidates found matching the job threshold and current filters.
@@ -222,7 +222,7 @@ const TopScorers = () => {
                 {filteredCandidates.map((cand, idx) => {
                   let initial = cand.name.substring(0, 2).toUpperCase();
                   if (cand.name.includes(' ')) {
-                     initial = cand.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+                    initial = cand.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                   }
 
                   return (

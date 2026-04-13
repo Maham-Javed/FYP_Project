@@ -43,7 +43,7 @@ const CandidateDetails = () => {
   // Make avatar initials
   let initial = cand.name.substring(0, 2).toUpperCase();
   if (cand.name.includes(' ')) {
-     initial = cand.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+    initial = cand.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   }
 
   // Generate mock sub-scores based on overall score for UI
@@ -51,8 +51,8 @@ const CandidateDetails = () => {
   const interviewScore = (cand.score - 2).toFixed(1);
 
   const handleAction = (action) => {
-    const msg = action === 'accept' 
-      ? `Accepting Email send to the ${cand.name}` 
+    const msg = action === 'accept'
+      ? `Accepting Email send to the ${cand.name}`
       : `Rejecting Email send to the ${cand.name}`;
     setPopupMessage(msg);
   };
@@ -79,11 +79,11 @@ const CandidateDetails = () => {
             <h4 style={{ margin: 0, color: '#111', fontSize: '15px', fontWeight: 'bold' }}>Success</h4>
             <p style={{ margin: '2px 0 0', color: '#4B5563', fontSize: '14px' }}>{popupMessage}</p>
           </div>
-          <button 
-            onClick={closePopup} 
-            style={{ 
-              background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', 
-              color: '#9CA3AF', padding: '0 5px' 
+          <button
+            onClick={closePopup}
+            style={{
+              background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer',
+              color: '#9CA3AF', padding: '0 5px'
             }}
           >
             ×
@@ -92,7 +92,7 @@ const CandidateDetails = () => {
       )}
 
       <div className="auth-card" style={{ maxWidth: '500px', animation: 'slideInRight 0.5s ease-out forwards', position: 'relative' }}>
-        
+
         {/* Back button */}
         <button onClick={() => navigate(-1)} style={{ position: 'absolute', top: '15px', left: '15px', background: 'none', border: 'none', cursor: 'pointer' }}>
           <FiArrowLeft size={24} />
@@ -100,9 +100,9 @@ const CandidateDetails = () => {
 
         {/* Profile Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px', marginTop: '10px' }}>
-          <div style={{ 
-            width: '60px', height: '60px', borderRadius: '50%', background: '#E2D9FC', 
-            display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#111', fontSize: '24px', fontWeight: '600' 
+          <div style={{
+            width: '60px', height: '60px', borderRadius: '50%', background: '#E2D9FC',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#111', fontSize: '24px', fontWeight: '600'
           }}>
             {initial}
           </div>
