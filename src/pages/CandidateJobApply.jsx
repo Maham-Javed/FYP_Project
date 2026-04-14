@@ -65,12 +65,12 @@ const CandidateJobApply = () => {
         id: Date.now().toString(),
         jobId: job.id,
         title: job.title,
-        company: 'Xenon Corp', // Mock company
+        company: job.company || 'Xenon Corp',
         status: 'Applied',
         appliedAt: new Date().toISOString(),
         candidateName: `${formData.firstName} ${formData.lastName}`,
         candidateEmail: formData.email,
-        experience: 'N/A' // To match UI loosely
+        experience: 'N/A'
       };
       localStorage.setItem('xenon_applications', JSON.stringify([...existingApps, newApp]));
 

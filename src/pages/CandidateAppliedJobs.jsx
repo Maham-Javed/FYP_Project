@@ -23,7 +23,6 @@ const CandidateAppliedJobs = () => {
         setApplications(JSON.parse(storedApps));
       } catch (e) {}
     } else {
-      // Mock some if array is strictly empty to match design test
       setApplications([]);
     }
   }, []);
@@ -172,23 +171,24 @@ const CandidateAppliedJobs = () => {
               </tr>
             </thead>
             <tbody>
-              {/* Dummy data as per wireframe since there is no interview scheduling system yet */}
-              <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>AI-Interview</td>
-                <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>SQL Developer</td>
-                <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>11-03</td>
-                <td style={{ padding: '15px 10px', fontSize: '14px' }}>
-                  <button onClick={() => navigate('/candidate-interview-info')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}>View Details</button>
-                </td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>AI-Interview</td>
-                <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>UI Developer</td>
-                <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>18-04</td>
-                <td style={{ padding: '15px 10px', fontSize: '14px' }}>
-                  <button onClick={() => navigate('/candidate-interview-info')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}>View Details</button>
-                </td>
-              </tr>
+              {applications.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ padding: '15px 10px', textAlign: 'center', color: '#6B7280' }}>
+                    No upcoming interviews.
+                  </td>
+                </tr>
+              ) : (
+                applications.map((app, index) => (
+                  <tr key={`int-${index}`} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                    <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>AI-Interview</td>
+                    <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>{app.title}</td>
+                    <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>TBD</td>
+                    <td style={{ padding: '15px 10px', fontSize: '14px' }}>
+                      <button onClick={() => navigate('/candidate-interview-info')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}>View Details</button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
 

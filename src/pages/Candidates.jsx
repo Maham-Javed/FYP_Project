@@ -2,17 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiX, FiLogOut } from 'react-icons/fi';
 
-const MOCK_CANDIDATES_BASE = [
-  { name: 'Asma Javed', email: 'AsmaJaved@gmail.com', experience: '1-2 Year', status: 'Phase 1' },
-  { name: 'Farhan', email: 'Farhan@gmail.com', experience: '2-4 Years', status: 'Phase 2' },
-  { name: 'Waqas', email: 'Waqas@gmail.com', experience: '4-5 Years', status: 'Phase 2' },
-  { name: 'Aqsa Arfan', email: 'AqsaArfan@gmail.com', experience: '1 Year', status: 'Phase 1' },
-  { name: 'Osama', email: 'Osama@gmail.com', experience: '3 Year', status: 'Phase 1' },
-  { name: 'Bisma Shaid', email: 'BismaShaid@gmail.com', experience: '1-2 Year', status: 'Phase 2' },
-  { name: 'Laraib', email: 'Laraib@gmail.com', experience: '2-4 Years', status: 'Phase 2' },
-];
-
-const EXPERIENCES = ['1-2 Year', '2-4 Years', '4-5 Years', '1 Year', '3 Year'];
 
 const Candidates = () => {
   const navigate = useNavigate();
@@ -35,40 +24,36 @@ const Candidates = () => {
 
     // Load actual submitted applications
     const realApps = JSON.parse(localStorage.getItem('xenon_applications') || '[]');
-    const realCandidates = realApps.map(app => ({
-      name: app.candidateName || 'Unknown Applicant',
-      email: app.candidateEmail || 'N/A',
-      experience: '1-2 Year', // Stub to match UI
-      jobPosition: app.title || 'Untitled',
-      status: 'Applied'
-    }));
+    const realCandidates = realApps.map(app => {
+      const assignedJob = loadedJobs.find(j => j.title === app.title) || {};
+      return {
+        name: app.candidateName || 'Unknown Applicant',
+        email: app.candidateEmail || 'N/A',
+        experience: assignedJob.experience || 'N/A',
+        jobPosition: app.title || 'Untitled',
+        status: 'Applied'
+      };
+    });
 
-    // If there are specific jobs, assign the mock candidates to them cyclically
-    if (loadedJobs.length > 0) {
-      const mappedCandidates = MOCK_CANDIDATES_BASE.map((cand, index) => {
-        const assignedJob = loadedJobs[index % loadedJobs.length];
-        return {
-          ...cand,
-          jobPosition: assignedJob.title || 'Untitled Job',
-        };
-      });
-      // Combine real candidates dynamically at the top with mock data filling the rest
-      setCandidates([...realCandidates, ...mappedCandidates]);
-    } else {
-      setCandidates(realCandidates); // No jobs posted, just show any existing real ones (rare bug fallback)
-    }
+    setCandidates(realCandidates);
   }, []);
 
-  const toggleJobFilter = (jobTitle) => {
-    setSelectedJobs(prev => 
-      prev.includes(jobTitle) ? prev.filter(j => j !== jobTitle) : [...prev, jobTitle]
-    );
+  const uniqueExperiences = [...new Set(jobs.map(j => j.experience).filter(Boolean))];
+
+  const handleJobChange = (e) => {
+    if (e.target.value === "") {
+      setSelectedJobs([]);
+    } else {
+      setSelectedJobs([e.target.value]);
+    }
   };
 
-  const toggleExpFilter = (exp) => {
-    setSelectedExps(prev => 
-      prev.includes(exp) ? prev.filter(e => e !== exp) : [...prev, exp]
-    );
+  const handleExpChange = (e) => {
+    if (e.target.value === "") {
+      setSelectedExps([]);
+    } else {
+      setSelectedExps([e.target.value]);
+    }
   };
 
   const handleCloseFilters = () => {
@@ -117,48 +102,35 @@ const Candidates = () => {
         <div style={{ padding: '0 30px', overflowY: 'auto', flex: 1 }}>
           <div style={{ marginBottom: '30px' }}>
             <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px' }}>Job</h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-              {jobs.map((job, idx) => {
-                const isActive = selectedJobs.includes(job.title);
-                return (
-                  <button 
-                    key={idx} 
-                    onClick={() => toggleJobFilter(job.title)}
-                    style={{
-                      padding: '8px 12px', borderRadius: '15px', border: 'none',
-                      background: isActive ? 'var(--primary-color)' : '#F0EDFF',
-                      color: isActive ? 'white' : '#111', fontSize: '12px', cursor: 'pointer',
-                      transition: '0.2s', fontWeight: '500'
-                    }}
-                  >
-                    {job.title}
-                  </button>
-                );
-              })}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <select 
+                value={selectedJobs.length > 0 ? selectedJobs[0] : ""} 
+                onChange={handleJobChange}
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }}
+              >
+                <option value="">All Jobs</option>
+                {jobs.map((job, idx) => (
+                  <option key={idx} value={job.title}>{job.title}</option>
+                ))}
+              </select>
               {jobs.length === 0 && <span style={{fontSize:'12px', color:'#999'}}>No jobs posted</span>}
             </div>
           </div>
 
           <div>
             <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px' }}>Experience</h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-              {EXPERIENCES.map((exp, idx) => {
-                const isActive = selectedExps.includes(exp);
-                return (
-                  <button 
-                    key={idx} 
-                    onClick={() => toggleExpFilter(exp)}
-                    style={{
-                      padding: '8px 12px', borderRadius: '15px', border: 'none',
-                      background: isActive ? 'var(--primary-color)' : '#F0EDFF',
-                      color: isActive ? 'white' : '#111', fontSize: '12px', cursor: 'pointer',
-                      transition: '0.2s', fontWeight: '500'
-                    }}
-                  >
-                    {exp}
-                  </button>
-                );
-              })}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <select 
+                value={selectedExps.length > 0 ? selectedExps[0] : ""} 
+                onChange={handleExpChange}
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }}
+              >
+                <option value="">All Experiences</option>
+                {uniqueExperiences.map((exp, idx) => (
+                  <option key={idx} value={exp}>{exp}</option>
+                ))}
+              </select>
+              {uniqueExperiences.length === 0 && <span style={{fontSize:'12px', color:'#999'}}>No experiences posted</span>}
             </div>
           </div>
         </div>

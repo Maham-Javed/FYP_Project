@@ -46,7 +46,7 @@ const CandidateDetails = () => {
     initial = cand.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   }
 
-  // Generate mock sub-scores based on overall score for UI
+  // Generate sub-scores based on overall score for UI
   const cvMatching = (cand.score - 5).toFixed(1);
   const interviewScore = (cand.score - 2).toFixed(1);
 

@@ -39,7 +39,7 @@ const Landing = () => {
           </div>
         </div>
 
-        {/* Mock Illustration Area */}
+        {/* Illustration Area */}
         <div className="hero-image">
           {/* We'll build a synthetic CSS art of the illustration or use some placeholders */}
           <div style={{ width: '500px', height: '400px', position: 'relative' }}>
