@@ -27,27 +27,20 @@ const verifyAuth = async (req, res, next) => {
  * Ensure to place after verifyAuth middleware
  */
 const requireRole = (requiredRole) => {
-    return async (req, res, next) => {
+    return (req, res, next) => {
         if (!req.user || !req.user.id) {
             return res.status(401).json({ error: 'Unauthorized: User not authenticated' });
         }
 
-        // Fetch user from public.users to get their role
-        const { data, error } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', req.user.id)
-            .single();
-            
-        if (error || !data) {
-            return res.status(500).json({ error: 'Database error fetching user role' });
-        }
+        // Ideally, user role should be stored in user_metadata during registration.
+        // It allows checking role synchronously through the decoded JWT.
+        const userRole = req.user.user_metadata?.role;
         
-        if (data.role !== requiredRole) {
+        if (userRole !== requiredRole) {
             return res.status(403).json({ error: `Forbidden: Requires ${requiredRole} access` });
         }
         
-        req.user.role = data.role;
+        req.user.role = userRole;
         next();
     };
 };
