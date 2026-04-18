@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiHome, FiUsers, FiClipboard, FiLogOut, FiSearch, FiArrowRight, FiBriefcase } from 'react-icons/fi';
+import { supabase } from '../supabaseClient';
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
-  const [candidate, setCandidate] = useState({ firstName: 'Sara', lastName: 'Akram', email: 'saraakram@gmail.com' });
+  const [candidate, setCandidate] = useState({ firstName: 'Loading...', lastName: '', email: '' });
   const [jobs, setJobs] = useState([]);
   
   // Search and Filter State
@@ -12,25 +13,37 @@ const CandidateDashboard = () => {
   const [activeFilters, setActiveFilters] = useState([]);
 
   useEffect(() => {
-    // Load candidate data
-    const candData = localStorage.getItem('xenon_candidate');
-    if (candData) {
-      try {
-        setCandidate(JSON.parse(candData));
-      } catch (e) {}
-    }
+    const loadData = async () => {
+      // 1. Get logged-in user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const fullName = user.user_metadata?.name || 'Candidate User';
+        const parts = fullName.split(' ');
+        setCandidate({
+          firstName: parts[0] || '',
+          lastName: parts.slice(1).join(' ') || '',
+          email: user.email
+        });
+      }
 
-    // Load available jobs created by recruiter
-    const storedJobs = localStorage.getItem('xenon_jobs');
-    if (storedJobs) {
-      try {
-        setJobs(JSON.parse(storedJobs));
-      } catch (e) {}
-    }
+      // 2. Load all available jobs
+      const { data: jobsData, error } = await supabase.from('jobs').select('*');
+      if (!error && jobsData) {
+        // Map database fields to frontend fields
+        const formattedJobs = jobsData.map(j => ({
+          ...j,
+          skills: j.required_skill,
+          experience: j.experience_level
+        }));
+        setJobs(formattedJobs);
+      }
+    };
+    
+    loadData();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('xenon_candidate');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate('/');
   };
 

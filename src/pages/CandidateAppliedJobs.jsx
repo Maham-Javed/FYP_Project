@@ -1,34 +1,91 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiHome, FiUsers, FiClipboard, FiLogOut, FiArrowLeft } from 'react-icons/fi';
+import { supabase } from '../supabaseClient';
 
 const CandidateAppliedJobs = () => {
   const navigate = useNavigate();
-  const [candidate, setCandidate] = useState({ firstName: 'Sara', lastName: 'Akram', email: 'saraakram@gmail.com' });
+  const [candidate, setCandidate] = useState({ firstName: 'Loading...', lastName: '', email: '' });
   const [applications, setApplications] = useState([]);
 
   useEffect(() => {
-    // Load candidate profile
-    const candData = localStorage.getItem('xenon_candidate');
-    if (candData) {
-      try {
-        setCandidate(JSON.parse(candData));
-      } catch (e) {}
-    }
+    const loadData = async () => {
+      // 1. Get logged-in user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const fullName = user.user_metadata?.name || 'Candidate User';
+        const parts = fullName.split(' ');
+        setCandidate({
+          firstName: parts[0] || '',
+          lastName: parts.slice(1).join(' ') || '',
+          email: user.email
+        });
 
-    // Load active applications
-    const storedApps = localStorage.getItem('xenon_applications');
-    if (storedApps) {
-      try {
-        setApplications(JSON.parse(storedApps));
-      } catch (e) {}
-    } else {
-      setApplications([]);
-    }
+        // 2. Fetch applied jobs. First find candidate_id from public.candidates
+        const { data: candData } = await supabase
+          .from('candidates')
+          .select('candidate_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (candData) {
+          // Fetch applications for this candidate, grouping with jobs
+          const { data: appsData, error } = await supabase
+            .from('applications')
+            .select(`
+              application_id,
+              status,
+              created_at,
+              jobs ( title )
+            `)
+            .eq('candidate_id', candData.candidate_id);
+            
+          if (error) {
+            console.error("Error fetching applications:", error.message);
+          }
+            
+          if (!error && appsData) {
+             // Map status to what the UI expects (since DB uses pending/interviewing)
+             const mapStatus = (dbStatus) => {
+               if (dbStatus === 'pending') return 'Applied';
+               if (dbStatus === 'interviewing') return 'Shortlisted';
+               if (dbStatus === 'accepted') return 'Accepted';
+               if (dbStatus === 'rejected') return 'Rejected';
+               return dbStatus || 'Applied';
+             };
+
+             // Map to format frontend expects
+             const frontendApps = appsData.map(app => {
+               // Auto-generate an interview date: 2 days after application date
+               const appliedDate = new Date(app.created_at);
+               const interviewDate = new Date(appliedDate);
+               interviewDate.setDate(interviewDate.getDate() + 2);
+               
+               const formattedDate = interviewDate.toLocaleDateString('en-US', {
+                 month: 'short',
+                 day: 'numeric',
+                 year: 'numeric'
+               });
+
+               return {
+                 id: app.application_id,
+                 title: app.jobs?.title || 'Unknown Job',
+                 company: 'Xenon Corp', 
+                 status: mapStatus(app.status),
+                 interviewDate: formattedDate
+               };
+             });
+             setApplications(frontendApps);
+          }
+        }
+      }
+    };
+    
+    loadData();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('xenon_candidate');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate('/');
   };
 
@@ -182,7 +239,7 @@ const CandidateAppliedJobs = () => {
                   <tr key={`int-${index}`} style={{ borderBottom: '1px solid #E5E7EB' }}>
                     <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>AI-Interview</td>
                     <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>{app.title}</td>
-                    <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>TBD</td>
+                    <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>{app.interviewDate}</td>
                     <td style={{ padding: '15px 10px', fontSize: '14px' }}>
                       <button onClick={() => navigate('/candidate-interview-info')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}>View Details</button>
                     </td>

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FiHome, FiUsers, FiClipboard, FiLogOut, FiArrowLeft } from 'react-icons/fi';
+import { supabase } from '../supabaseClient';
 
 const CandidateJobDetail = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
   const job = state?.job;
 
-  const [candidate, setCandidate] = useState({ firstName: 'Sara', lastName: 'Akram', email: 'saraakram@gmail.com' });
+  const [candidate, setCandidate] = useState({ firstName: 'Loading...', lastName: '', email: '' });
   const [isApplying, setIsApplying] = useState(false);
 
   useEffect(() => {
@@ -17,18 +18,25 @@ const CandidateJobDetail = () => {
     }
     
     // Load candidate data
-    const candData = localStorage.getItem('xenon_candidate');
-    if (candData) {
-      try {
-        setCandidate(JSON.parse(candData));
-      } catch (e) {}
-    }
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const fullName = user.user_metadata?.name || 'Candidate User';
+        const parts = fullName.split(' ');
+        setCandidate({
+          firstName: parts[0] || '',
+          lastName: parts.slice(1).join(' ') || '',
+          email: user.email
+        });
+      }
+    };
+    loadUser();
   }, [job, navigate]);
 
   if (!job) return null;
 
-  const handleLogout = () => {
-    localStorage.removeItem('xenon_candidate');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate('/');
   };
 

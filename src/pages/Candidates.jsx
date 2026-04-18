@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiX, FiLogOut } from 'react-icons/fi';
+import { supabase } from '../supabaseClient';
 
 
 const Candidates = () => {
@@ -12,31 +13,80 @@ const Candidates = () => {
   const [selectedExps, setSelectedExps] = useState([]);
 
   // Recruiter credentials
-  const recruiterStr = localStorage.getItem('xenon_recruiter');
-  const recruiter = recruiterStr ? JSON.parse(recruiterStr) : { firstName: 'John', lastName: 'Doe', email: 'johndoe@unilever.com' };
-  const initials = `${recruiter.firstName[0] || ''}${recruiter.lastName[0] || ''}`.toUpperCase();
-  const fullName = `${recruiter.firstName} ${recruiter.lastName}`;
+  const [recruiter, setRecruiter] = useState({ firstName: 'Loading...', lastName: '', email: '' });
 
   useEffect(() => {
-    // Load jobs
-    const loadedJobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
-    setJobs(loadedJobs);
+    const loadData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const parts = (user.user_metadata?.name || 'Recruiter').split(' ');
+      setRecruiter({
+        firstName: parts[0] || '',
+        lastName: parts.slice(1).join(' ') || '',
+        email: user.email
+      });
 
-    // Load actual submitted applications
-    const realApps = JSON.parse(localStorage.getItem('xenon_applications') || '[]');
-    const realCandidates = realApps.map(app => {
-      const assignedJob = loadedJobs.find(j => j.title === app.title) || {};
-      return {
-        name: app.candidateName || 'Unknown Applicant',
-        email: app.candidateEmail || 'N/A',
-        experience: assignedJob.experience || 'N/A',
-        jobPosition: app.title || 'Untitled',
-        status: 'Applied'
-      };
-    });
+      const { data: recData } = await supabase.from('recruiters').select('recruiter_id').eq('user_id', user.id).single();
+      if (!recData) return;
 
-    setCandidates(realCandidates);
+      const { data: jobsArray } = await supabase.from('jobs').select('job_id, title, experience_level').eq('recruiter_id', recData.recruiter_id);
+      if (!jobsArray || jobsArray.length === 0) {
+        setJobs([]);
+        setCandidates([]);
+        return;
+      }
+      setJobs(jobsArray.map(j => ({ ...j, experience: j.experience_level })));
+
+      const jobIds = jobsArray.map(j => j.job_id);
+      
+      // Load actual submitted applications for THESE jobs
+      const { data: appsData, error } = await supabase
+        .from('applications')
+        .select(`
+          application_id,
+          status,
+          job_id,
+          candidate_id,
+          candidates ( user_id )
+        `)
+        .in('job_id', jobIds);
+
+      if (error) {
+        console.error("Error fetching applications:", error.message);
+      }
+
+      // Now fetch user details for each application manually to be safe on joins
+      if (!error && appsData && appsData.length > 0) {
+        const userIds = appsData.map(a => a.candidates?.user_id).filter(Boolean);
+        let userMap = {};
+        if (userIds.length > 0) {
+           const { data: usersData } = await supabase.from('users').select('id, name, email').in('id', userIds);
+           if (usersData) {
+             userMap = usersData.reduce((acc, curr) => ({ ...acc, [curr.id]: curr }), {});
+           }
+        }
+
+        const processedApps = appsData.map(app => {
+           const currentJob = jobsArray.find(j => j.job_id === app.job_id);
+           const uData = userMap[app.candidates?.user_id] || {};
+           return {
+             name: uData.name || 'Unknown Applicant',
+             email: uData.email || 'N/A',
+             experience: currentJob?.experience_level || 'N/A',
+             jobPosition: currentJob?.title || 'Unknown Job',
+             status: app.status || 'Applied'
+           };
+        });
+        setCandidates(processedApps);
+      }
+    };
+
+    loadData();
   }, []);
+
+  const initials = `${recruiter.firstName[0] || ''}${recruiter.lastName[0] || ''}`.toUpperCase();
+  const fullName = `${recruiter.firstName} ${recruiter.lastName}`.trim() || 'Recruiter';
 
   const uniqueExperiences = [...new Set(jobs.map(j => j.experience).filter(Boolean))];
 

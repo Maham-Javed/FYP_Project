@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 const PostJob = () => {
   const navigate = useNavigate();
@@ -20,32 +21,33 @@ const PostJob = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handlePost = (e) => {
+  const handlePost = async (e) => {
     e.preventDefault();
-    
-    // Fetch existing jobs from localStorage or start empty array
-    const existingJobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
-    
-    // Add new job (with 0 applied/shortlisted stats initially)
-    const newJob = {
-      id: Date.now().toString(),
-      title: formData.title || 'Untitled Job',
-      description: formData.description || 'No description provided for this job. This is a generic default message.',
-      careerLevel: formData.careerLevel || '',
-      positions: formData.positions || '',
-      skills: formData.skills || 'HTML, CSS, JavaScript, React',
-      location: formData.location || 'Karachi',
-      qualification: formData.qualification || 'Bachelors',
-      experience: formData.experience || '1-3 years',
-      threshold: formData.threshold || '70%',
-      applied: 0,
-      shortlisted: 0,
-      topScorer: 0
-    };
-    
-    localStorage.setItem('xenon_jobs', JSON.stringify([...existingJobs, newJob]));
-    
-    navigate('/dashboard');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Please log in first to post a job.");
+
+      const { data: recData } = await supabase.from('recruiters').select('recruiter_id').eq('user_id', user.id).single();
+      if (!recData) throw new Error("Recruiter profile not found.");
+
+      const { error } = await supabase.from('jobs').insert({
+        recruiter_id: recData.recruiter_id,
+        title: formData.title || 'Untitled Job',
+        description: formData.description || '',
+        location: formData.location || '',
+        qualification: formData.qualification || '',
+        positions: parseInt(formData.positions) || 1,
+        required_skill: formData.skills || 'Not specified',
+        experience_level: formData.experience || 'Not specified',
+        interview_difficulty: formData.careerLevel || 'intermediate',
+        passing_threshold: parseInt(formData.threshold) || 70
+      });
+
+      if (error) throw error;
+      navigate('/dashboard');
+    } catch (err) {
+      alert("Error posting job: " + err.message);
+    }
   };
 
   return (

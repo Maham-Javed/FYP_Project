@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiMenu } from 'react-icons/fi';
+import { supabase } from '../supabaseClient';
 
 const JobDetails = () => {
   const { id } = useParams();
@@ -9,38 +10,30 @@ const JobDetails = () => {
   const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
-    const jobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
-    if (jobs[id]) {
-      setJob(jobs[id]);
-    } else {
-      navigate('/dashboard'); // Job not found
-    }
+    const fetchJob = async () => {
+      const { data, error } = await supabase.from('jobs').select('*').eq('job_id', id).single();
+      if (error || !data) {
+        navigate('/dashboard'); // Job not found
+      } else {
+        setJob(data);
+      }
+    };
+    fetchJob();
   }, [id, navigate]);
 
-  const handleDelete = () => {
-    const jobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
-    const jobToDelete = jobs[id];
-    
-    // Remove job from recruiter dashboard
-    jobs.splice(id, 1);
-    localStorage.setItem('xenon_jobs', JSON.stringify(jobs));
-    
-    // Remove any submitted applications from candidates associated with this job
-    if (jobToDelete) {
-      const existingApps = JSON.parse(localStorage.getItem('xenon_applications') || '[]');
-      const updatedApps = existingApps.filter(app => {
-        // Find match by strong ID, or explicitly matching exact Title just to be sure
-        const matchById = jobToDelete.id && app.jobId === jobToDelete.id;
-        const matchByTitle = app.title === jobToDelete.title;
-        return !(matchById || matchByTitle);
-      });
-      localStorage.setItem('xenon_applications', JSON.stringify(updatedApps));
+  const handleDelete = async () => {
+    try {
+      // Delete any applications associated with this job first to satisfy foreign key constraints
+      await supabase.from('applications').delete().eq('job_id', id);
       
-      // Also manually fire a localStorage event so other tabs/components update automatically if needed
-      window.dispatchEvent(new Event('storage'));
+      // Delete the job itself
+      const { error } = await supabase.from('jobs').delete().eq('job_id', id);
+      if (error) throw error;
+      
+      navigate('/dashboard');
+    } catch (err) {
+      alert("Error deleting job: " + err.message);
     }
-
-    navigate('/dashboard');
   };
 
   const handleEdit = () => {
@@ -97,26 +90,25 @@ const JobDetails = () => {
         </div>
 
         <div style={{ marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>Job Description:</h3>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>Job Features:</h3>
           <p style={{ fontSize: '14px', color: '#444', lineHeight: '1.5' }}>
-            {job.description || "No description provided."}
+            Passing Threshold: {job.passing_threshold}%
           </p>
         </div>
 
         <div style={{ marginBottom: '20px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>Required Experience:</h3>
           <ul style={{ fontSize: '14px', color: '#444', lineHeight: '1.5', paddingLeft: '20px' }}>
-            <li>{job.experience ? `${job.experience} years of experience` : "Experience not specified"}</li>
-            <li>{job.qualification ? `Qualification: ${job.qualification}` : "Qualification not specified"}</li>
-            <li>{job.careerLevel ? `Career Level: ${job.careerLevel}` : "Career Level not specified"}</li>
+            <li>{job.experience_level ? `${job.experience_level} years of experience` : "Experience not specified"}</li>
+            <li>Interview Difficulty: {job.interview_difficulty || "Not specified"}</li>
           </ul>
         </div>
 
         <div style={{ marginBottom: '20px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>Required Skills:</h3>
           <ul style={{ fontSize: '14px', color: '#444', lineHeight: '1.5', paddingLeft: '20px' }}>
-            {job.skills ? (
-              job.skills.split(',').map((skill, i) => <li key={i}>{skill.trim()}</li>)
+            {job.required_skill ? (
+              job.required_skill.split(',').map((skill, i) => <li key={i}>{skill.trim()}</li>)
             ) : (
               <li>No specific skills listed.</li>
             )}

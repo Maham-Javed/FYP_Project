@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 const CandidateJobApply = () => {
   const navigate = useNavigate();
@@ -24,22 +25,19 @@ const CandidateJobApply = () => {
       return;
     }
 
-    // Populate known data from localStorage
-    const candData = localStorage.getItem('xenon_candidate');
-    if (candData) {
-      try {
-        const parsed = JSON.parse(candData);
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const parts = (user.user_metadata?.name || '').split(' ');
         setFormData(prev => ({
           ...prev,
-          firstName: parsed.firstName || '',
-          lastName: parsed.lastName || '',
-          email: parsed.email || ''
+          firstName: parts[0] || '',
+          lastName: parts.slice(1).join(' ') || '',
+          email: user.email || ''
         }));
-        if (parsed.cvFilename) {
-          setCvFilename(parsed.cvFilename);
-        }
-      } catch (e) {}
-    }
+      }
+    };
+    loadUser();
   }, [job, navigate]);
 
   const handleChange = (e) => {
@@ -53,43 +51,52 @@ const CandidateJobApply = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsApplying(true);
     
-    // Simulate application process and save application
-    setTimeout(() => {
-      // 1. Save application to Candidate's Application List
-      const existingApps = JSON.parse(localStorage.getItem('xenon_applications') || '[]');
-      const newApp = {
-        id: Date.now().toString(),
-        jobId: job.id,
-        title: job.title,
-        company: job.company || 'Xenon Corp',
-        status: 'Applied',
-        appliedAt: new Date().toISOString(),
-        candidateName: `${formData.firstName} ${formData.lastName}`,
-        candidateEmail: formData.email,
-        experience: 'N/A'
-      };
-      localStorage.setItem('xenon_applications', JSON.stringify([...existingApps, newApp]));
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Must be logged in to apply");
 
-      // 2. Increment Applied count on Recruiter's Job Board
-      const existingJobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
-      const updatedJobs = existingJobs.map(j => {
-         if (j.id === job.id || j.title === job.title) {
-            return { ...j, applied: (j.applied || 0) + 1 };
-         }
-         return j;
+      // Get candidate ID
+      const { data: candData } = await supabase.from('candidates').select('candidate_id').eq('user_id', user.id).single();
+      if (!candData) throw new Error("Candidate profile not found");
+
+      let resumeUrl = null;
+      if (cvFile) {
+        const fileExt = cvFile.name.split('.').pop();
+        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from('resumes')
+          .upload(fileName, cvFile);
+
+        if (uploadError) throw uploadError;
+        resumeUrl = data.path;
+
+        // Optionally update candidate profile with latest resume
+        await supabase.from('candidates').update({ resume_url: resumeUrl }).eq('candidate_id', candData.candidate_id);
+      }
+
+      // Save application
+      const { error: appError } = await supabase.from('applications').insert({
+        job_id: job.job_id,
+        candidate_id: candData.candidate_id
       });
-      localStorage.setItem('xenon_jobs', JSON.stringify(updatedJobs));
 
-      setIsApplying(false);
+      if (appError) throw appError;
+
       setShowToast(true);
       setTimeout(() => {
         navigate('/candidate-dashboard');
       }, 2500);
-    }, 1500);
+
+    } catch (err) {
+      alert("Error applying: " + err.message);
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   return (

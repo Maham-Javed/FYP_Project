@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FcGoogle } from 'react-icons/fc';
-
+import { supabase } from '../supabaseClient';
 const HireSignup = () => {
   const navigate = useNavigate();
   const [isSignIn, setIsSignIn] = useState(false);
@@ -10,25 +10,47 @@ const HireSignup = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: ''
+    email: '',
+    password: '',
+    company: ''
   });
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isSignIn) {
-      localStorage.setItem('xenon_recruiter', JSON.stringify({
-        firstName: formData.firstName || 'John',
-        lastName: formData.lastName || 'Doe',
-        email: formData.email || 'johndoe@unilever.com'
-      }));
+    try {
+      if (isSignIn) {
+        // Sign In via Supabase
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email.trim(),
+          password: formData.password,
+        });
+
+        if (error) throw error;
+        localStorage.setItem('xenon_session', JSON.stringify(data.session));
+      } else {
+        // Sign Up via Supabase
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email.trim(),
+          password: formData.password,
+          options: {
+            data: {
+              name: `${formData.firstName} ${formData.lastName}`.trim() || 'Recruiter',
+              role: 'recruiter',
+              company_name: formData.company || 'Unknown Company'
+            }
+          }
+        });
+
+        if (error) throw error;
+      }
+      setPopupMessage(`Successfully ${isSignIn ? 'Signed in' : 'Signed up'} as a Recruiter`);
+    } catch (err) {
+      alert("Error: " + err.message);
     }
-    
-    // Show success popup
-    setPopupMessage(`Successfully ${isSignIn ? 'Sign in' : 'Sign up'} as a Recruiter`);
   };
 
   const closePopup = () => {
@@ -103,7 +125,7 @@ const HireSignup = () => {
           {!isSignIn && (
             <div className="form-group">
               <label>Company</label>
-              <input name="company" type="text" className="form-input" placeholder="eg: Unilever" />
+              <input name="company" onChange={handleChange} type="text" className="form-input" placeholder="eg: Unilever" />
             </div>
           )}
           
@@ -114,7 +136,7 @@ const HireSignup = () => {
           
           <div className="form-group">
             <label>Password</label>
-            <input type="password" required className="form-input" placeholder="********" />
+            <input name="password" onChange={handleChange} type="password" required className="form-input" placeholder="********" />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px' }}>

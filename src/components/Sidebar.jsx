@@ -1,13 +1,34 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { FiHome, FiUsers, FiAward, FiPlus, FiLogOut } from 'react-icons/fi';
+import { supabase } from '../supabaseClient';
 
 const Sidebar = () => {
   const navigate = useNavigate();
-  const recruiterStr = localStorage.getItem('xenon_recruiter');
-  const recruiter = recruiterStr ? JSON.parse(recruiterStr) : { firstName: 'John', lastName: 'Doe', email: 'johndoe@unilever.com' };
+  const [recruiter, setRecruiter] = useState({ firstName: '', lastName: '', email: '' });
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const parts = (user.user_metadata?.name || 'John Doe').split(' ');
+        setRecruiter({
+          firstName: parts[0] || '',
+          lastName: parts.slice(1).join(' ') || '',
+          email: user.email
+        });
+      }
+    };
+    loadUser();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
+
   const initials = `${recruiter.firstName[0] || ''}${recruiter.lastName[0] || ''}`.toUpperCase();
-  const fullName = `${recruiter.firstName} ${recruiter.lastName}`;
+  const fullName = `${recruiter.firstName} ${recruiter.lastName}`.trim() || 'Loading...';
 
   return (
     <div className="sidebar-mobile" style={{
@@ -96,9 +117,9 @@ const Sidebar = () => {
               <div style={{ fontSize: '12px', color: 'var(--text-light)' }}>{recruiter.email}</div>
             </div>
           </div>
-          <NavLink to="/" style={{ color: 'var(--primary-color)' }}>
+          <div onClick={handleLogout} style={{ cursor: 'pointer', color: 'var(--primary-color)' }}>
             <FiLogOut size={20} />
-          </NavLink>
+          </div>
         </div>
       </div>
     </div>

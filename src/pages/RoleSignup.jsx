@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FcGoogle } from 'react-icons/fc';
-
+import { supabase } from '../supabaseClient';
 const RoleSignup = () => {
   const navigate = useNavigate();
   const [cvFile, setCvFile] = useState(null);
@@ -11,7 +11,8 @@ const RoleSignup = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: ''
+    email: '',
+    password: ''
   });
 
   const handleChange = (e) => {
@@ -24,18 +25,38 @@ const RoleSignup = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isSignIn) {
-      localStorage.setItem('xenon_candidate', JSON.stringify({
-        firstName: formData.firstName || 'Sara',
-        lastName: formData.lastName || 'Akram',
-        email: formData.email || 'saraakram@gmail.com',
-        cvFilename: cvFile ? cvFile.name : ''
-      }));
+    try {
+      if (isSignIn) {
+        // Sign In via Supabase
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email.trim(),
+          password: formData.password,
+        });
+
+        if (error) throw error;
+        // Optionally store the session for other components (or use supabase.auth.getSession())
+        localStorage.setItem('xenon_session', JSON.stringify(data.session));
+      } else {
+        // Sign Up via Supabase
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email.trim(),
+          password: formData.password,
+          options: {
+            data: {
+              name: `${formData.firstName} ${formData.lastName}`.trim() || 'Candidate',
+              role: 'candidate',
+            }
+          }
+        });
+
+        if (error) throw error;
+      }
+      setPopupMessage(`Successfully ${isSignIn ? 'Signed in' : 'Signed up'} as a candidate`);
+    } catch (err) {
+      alert("Error: " + err.message);
     }
-    // Show success popup
-    setPopupMessage(`Successfully ${isSignIn ? 'Sign in' : 'Sign up'} as a candidate`);
   };
 
   const closePopup = () => {
@@ -114,7 +135,7 @@ const RoleSignup = () => {
           
           <div className="form-group">
             <label>Password</label>
-            <input required type="password" className="form-input" placeholder="********" />
+            <input name="password" onChange={handleChange} required type="password" className="form-input" placeholder="********" />
           </div>
 
           {!isSignIn && (

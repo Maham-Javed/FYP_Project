@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 const EditJob = () => {
   const navigate = useNavigate();
@@ -18,41 +19,51 @@ const EditJob = () => {
   });
 
   useEffect(() => {
-    const jobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
-    if (jobs[id]) {
-      setFormData({
-        title: jobs[id].title || '',
-        description: jobs[id].description || '',
-        careerLevel: jobs[id].careerLevel || '',
-        positions: jobs[id].positions || '',
-        skills: jobs[id].skills || '',
-        location: jobs[id].location || '',
-        qualification: jobs[id].qualification || '',
-        experience: jobs[id].experience || '',
-        threshold: jobs[id].threshold || ''
-      });
-    } else {
-      navigate('/dashboard');
-    }
+    const fetchJob = async () => {
+      const { data, error } = await supabase.from('jobs').select('*').eq('job_id', id).single();
+      if (data) {
+        setFormData({
+          title: data.title || '',
+          description: data.description || '',
+          careerLevel: data.interview_difficulty || '',
+          positions: data.positions?.toString() || '',
+          skills: data.required_skill || '',
+          location: data.location || '',
+          qualification: data.qualification || '',
+          experience: data.experience_level || '',
+          threshold: data.passing_threshold?.toString() || ''
+        });
+      } else {
+        navigate('/dashboard');
+      }
+    };
+    fetchJob();
   }, [id, navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleEdit = (e) => {
+  const handleEdit = async (e) => {
     e.preventDefault();
-    
-    const jobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
-    if (jobs[id]) {
-      jobs[id] = {
-        ...jobs[id],
-        ...formData
-      };
-      localStorage.setItem('xenon_jobs', JSON.stringify(jobs));
+    try {
+      const { error } = await supabase.from('jobs').update({
+        title: formData.title || 'Untitled Job',
+        description: formData.description || '',
+        location: formData.location || '',
+        qualification: formData.qualification || '',
+        positions: parseInt(formData.positions) || 1,
+        required_skill: formData.skills || 'Not specified',
+        experience_level: formData.experience || 'Not specified',
+        interview_difficulty: formData.careerLevel || 'intermediate',
+        passing_threshold: parseInt(formData.threshold) || 70
+      }).eq('job_id', id);
+
+      if (error) throw error;
+      navigate(`/job/${id}`);
+    } catch (err) {
+      alert("Error updating job: " + err.message);
     }
-    
-    navigate(`/job/${id}`);
   };
 
   return (
