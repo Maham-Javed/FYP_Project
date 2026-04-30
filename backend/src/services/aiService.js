@@ -53,6 +53,7 @@ class AIService {
      */
     static async parseResume(resumeText) {
         // Implementation stub
+        console.log("Parsing resume text of length:", resumeText?.length);
         return {
            skills: [],
            education: "",

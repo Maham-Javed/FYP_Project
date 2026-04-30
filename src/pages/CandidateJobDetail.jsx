@@ -3,14 +3,18 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { FiHome, FiUsers, FiClipboard, FiLogOut, FiArrowLeft } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 
+// CandidateJobDetail Component
+// This component displays the full details of a specific job to a candidate.
+// It shows job title, description, requirements, and an Apply button.
 const CandidateJobDetail = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
   const job = state?.job;
 
+  // Candidate profile state
   const [candidate, setCandidate] = useState({ firstName: 'Loading...', lastName: '', email: '' });
-  const [isApplying, setIsApplying] = useState(false);
-
+  // Removed unused setIsApplying as apply action navigates immediately
+  const [isApplying] = useState(false);
   useEffect(() => {
     if (!job) {
       navigate('/candidate-dashboard');

@@ -18,6 +18,9 @@ import CandidateInterviewInfo from './pages/CandidateInterviewInfo';
 import CandidateInterview from './pages/CandidateInterview';
 import CandidateInterviewScore from './pages/CandidateInterviewScore';
 
+// App Component
+// Main router component that defines all the navigation routes for the Xenon application.
+// Connects different pages like landing, auth, recruiter dashboard, and candidate flows.
 function App() {
   return (
     <Router>

@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
+// EditJob Component
+// This component allows a recruiter to edit an existing job posting.
+// It fetches the job details from Supabase by job_id, populates the form,
+// and updates the database upon form submission.
 const EditJob = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -21,8 +25,11 @@ const EditJob = () => {
   useEffect(() => {
     const fetchJob = async () => {
       const { data, error } = await supabase.from('jobs').select('*').eq('job_id', id).single();
-      if (data) {
-        setFormData({
+      if (error || !data) {
+        navigate('/dashboard');
+        return;
+      }
+      setFormData({
           title: data.title || '',
           description: data.description || '',
           careerLevel: data.interview_difficulty || '',
@@ -33,9 +40,6 @@ const EditJob = () => {
           experience: data.experience_level || '',
           threshold: data.passing_threshold?.toString() || ''
         });
-      } else {
-        navigate('/dashboard');
-      }
     };
     fetchJob();
   }, [id, navigate]);

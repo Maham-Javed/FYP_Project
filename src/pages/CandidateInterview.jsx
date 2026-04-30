@@ -3,11 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { FiHome, FiUsers, FiClipboard, FiLogOut, FiArrowLeft } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 
+// CandidateInterview Component
+// This component renders the automated interview interface for candidates.
+// It manages the timer, current question progression, and submission of the interview.
 const CandidateInterview = () => {
   const navigate = useNavigate();
+  // Candidate profile state
   const [candidate, setCandidate] = useState({ firstName: 'Loading...', lastName: '', email: '' });
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
+  // Timer state (5 minutes = 300 seconds)
+  const [timeLeft, setTimeLeft] = useState(300); 
+  // Current question index state
   const [currentQuestion, setCurrentQuestion] = useState(1);
+  // Submission and toast states
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const totalQuestions = 10;
@@ -36,19 +43,18 @@ const CandidateInterview = () => {
     return () => clearInterval(timerId);
   }, [currentQuestion]); // Reset behavior can be added if it changes, but here timer just runs. Let's make it fixed per question.
 
-  // Reset timer if question changes
-  useEffect(() => {
-    setTimeLeft(300);
-  }, [currentQuestion]);
-
+  // Remove the useEffect that sets timeLeft based on currentQuestion to fix lint error
+  // The timer reset is now handled in handleNext.
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/');
   };
 
+  // Proceed to next question or submit if finished
   const handleNext = () => {
     if (currentQuestion < totalQuestions) {
       setCurrentQuestion(prev => prev + 1);
+      setTimeLeft(300); // Reset timer here to avoid setting state in effect
     } else {
       // Finished
       setIsSubmitting(true);

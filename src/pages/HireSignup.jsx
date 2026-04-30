@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FcGoogle } from 'react-icons/fc';
 import { supabase } from '../supabaseClient';
+// HireSignup Component
+// This component handles the sign-up and sign-in process for recruiters.
+// It integrates with Supabase Authentication to manage user credentials and roles.
 const HireSignup = () => {
   const navigate = useNavigate();
   const [isSignIn, setIsSignIn] = useState(false);
@@ -33,7 +36,7 @@ const HireSignup = () => {
         localStorage.setItem('xenon_session', JSON.stringify(data.session));
       } else {
         // Sign Up via Supabase
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email: formData.email.trim(),
           password: formData.password,
           options: {
@@ -58,15 +61,17 @@ const HireSignup = () => {
     navigate('/dashboard');
   };
 
+  // Clear the popup message after 3 seconds
   useEffect(() => {
     let timer;
     if (popupMessage) {
       timer = setTimeout(() => {
-        closePopup();
+        setPopupMessage('');
+        navigate('/dashboard');
       }, 3000);
     }
     return () => clearTimeout(timer);
-  }, [popupMessage]);
+  }, [popupMessage, navigate]);
 
   return (
     <div className="auth-container">

@@ -2,32 +2,35 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
 
+// CandidateDetails Component
+// This component displays the detailed profile of a candidate to a recruiter.
+// It shows the candidate's name, email, the specific job they applied for, and their scores.
+// It also provides Accept and Reject action buttons.
 const CandidateDetails = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const [jobDesc, setJobDesc] = useState('');
+  // State for showing success toast messages
   const [popupMessage, setPopupMessage] = useState('');
 
   const cand = state?.cand;
 
+  // Calculate the matched job description directly during render
+  const jobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
+  const matchedJob = jobs.find(j => j.title === cand?.jobPosition);
+  const jobDesc = matchedJob ? matchedJob.description : '';
+
+  // Redirect if no candidate data is provided in navigation state
   useEffect(() => {
     if (!cand) {
       navigate('/top-scorers');
-      return;
-    }
-
-    const jobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
-    const matchedJob = jobs.find(j => j.title === cand.jobPosition);
-    if (matchedJob) {
-      setJobDesc(matchedJob.description);
     }
   }, [cand, navigate]);
-
   const closePopup = () => {
     setPopupMessage('');
     navigate('/top-scorers');
   };
 
+  // Clear the popup message after 3 seconds
   useEffect(() => {
     let timer;
     if (popupMessage) {
@@ -36,7 +39,8 @@ const CandidateDetails = () => {
       }, 3000);
     }
     return () => clearTimeout(timer);
-  }, [popupMessage]);
+  }, [popupMessage]); // Added 'closePopup' to dependencies? Actually, closePopup is re-created every render, so we shouldn't add it unless we useCallback, or just ignore for now or use navigate directly.
+  // The linter warning was in another file regarding closePopup. In CandidateDetails, no warning was raised for closePopup.
 
   if (!cand) return null;
 

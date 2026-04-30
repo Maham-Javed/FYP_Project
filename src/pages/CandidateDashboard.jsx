@@ -3,15 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { FiHome, FiUsers, FiClipboard, FiLogOut, FiSearch, FiArrowRight, FiBriefcase } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 
+// CandidateDashboard Component
+// This component serves as the main home page for candidates.
+// It displays a list of available jobs fetched from Supabase,
+// allows the user to search jobs by title/skills/keywords, 
+// and filter jobs by predefined categories (Skills, Experience, Location).
 const CandidateDashboard = () => {
   const navigate = useNavigate();
+  // State to hold the candidate's basic profile info
   const [candidate, setCandidate] = useState({ firstName: 'Loading...', lastName: '', email: '' });
+  // State to hold all job listings from the database
   const [jobs, setJobs] = useState([]);
   
   // Search and Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilters, setActiveFilters] = useState([]);
 
+  // Fetch candidate details and jobs on component mount
   useEffect(() => {
     const loadData = async () => {
       // 1. Get logged-in user
@@ -42,11 +50,13 @@ const CandidateDashboard = () => {
     loadData();
   }, []);
 
+  // Handle user logout and clear session
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/');
   };
 
+  // Toggle filter selection
   const toggleFilter = (filter) => {
     if (activeFilters.includes(filter)) {
       setActiveFilters(activeFilters.filter((f) => f !== filter));
@@ -58,7 +68,7 @@ const CandidateDashboard = () => {
   // Avatar initial
   const initial = candidate.firstName.charAt(0).toUpperCase();
 
-  // Filter Logic
+  // Filter Logic: Filter jobs based on search term and selected filters
   const filteredJobs = jobs.filter((job) => {
     const jobString = `${job.title} ${job.description} ${job.location} ${job.skills} ${job.experience}`.toLowerCase();
     
@@ -179,7 +189,7 @@ const CandidateDashboard = () => {
             ) : (
                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '25px' }}>
                  {filteredJobs.map((job) => (
-                   <div key={job.id || Math.random()} 
+                   <div key={job.id} 
                      onClick={() => navigate('/candidate-job', { state: { job } })}
                      style={{
                        border: '2px solid var(--primary-color)', borderRadius: '24px', padding: '25px',

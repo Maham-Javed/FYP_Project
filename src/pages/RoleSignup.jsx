@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FcGoogle } from 'react-icons/fc';
 import { supabase } from '../supabaseClient';
+// RoleSignup Component
+// This component handles the sign-up and sign-in process for candidates.
+// It integrates with Supabase Authentication and includes CV upload functionality.
 const RoleSignup = () => {
   const navigate = useNavigate();
   const [cvFile, setCvFile] = useState(null);
@@ -40,7 +43,7 @@ const RoleSignup = () => {
         localStorage.setItem('xenon_session', JSON.stringify(data.session));
       } else {
         // Sign Up via Supabase
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email: formData.email.trim(),
           password: formData.password,
           options: {
@@ -64,15 +67,17 @@ const RoleSignup = () => {
     navigate('/candidate-dashboard');
   };
 
+  // Clear the popup message after 3 seconds
   useEffect(() => {
     let timer;
     if (popupMessage) {
       timer = setTimeout(() => {
-        closePopup();
+        setPopupMessage('');
+        navigate('/candidate-dashboard');
       }, 3000);
     }
     return () => clearTimeout(timer);
-  }, [popupMessage]);
+  }, [popupMessage, navigate]);
 
   return (
     <div className="auth-container">
