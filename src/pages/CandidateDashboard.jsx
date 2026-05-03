@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiHome, FiUsers, FiClipboard, FiLogOut, FiSearch, FiArrowRight, FiBriefcase } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
+import logoUrl from '../assets/logo.svg';
 
 // CandidateDashboard Component
 // This component serves as the main home page for candidates.
@@ -98,13 +99,8 @@ const CandidateDashboard = () => {
         width: '280px', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column',
         padding: '30px 0'
       }}>
-        <div style={{ padding: '0 30px', marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ 
-            width: '40px', height: '40px', background: 'var(--sidebar-active-bg)', borderRadius: '8px',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--primary-color)',
-            fontWeight: 'bold', fontSize: '18px', color: '#111'
-          }}>Xr</div>
-          <span style={{ fontSize: '20px', fontWeight: 'bold', letterSpacing: '1px' }}>XENON</span>
+        <div style={{ padding: '0 24px', marginBottom: '40px', display: 'flex', alignItems: 'center' }}>
+          <img src={logoUrl} alt="Xenon AI" style={{ height: '32px' }} />
         </div>
 
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>

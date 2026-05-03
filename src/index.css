@@ -1,15 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --primary-color: #9C89F8;
-  --secondary-color: #B9A8F9;
-  --primary-bg: #FFFFFF;
-  --sidebar-active-bg: #F0EDFF;
-  --text-dark: #1F2937;
+  --primary-color: #4F46E5;
+  --secondary-color: #8B5CF6;
+  --primary-bg: #F9FAFB;
+  --surface-color: #FFFFFF;
+  --sidebar-active-bg: #EEF2FF;
+  --text-dark: #111827;
   --text-light: #6B7280;
+  --text-muted: #9CA3AF;
   --border-light: #E5E7EB;
+  
+  --success-text: #10B981;
+  --success-bg: #D1FAE5;
+  --warning-text: #F59E0B;
+  --warning-bg: #FEF3C7;
+  --error-text: #EF4444;
+  --error-bg: #FEE2E2;
+
   --gradient-btn: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-  --gradient-bg: linear-gradient(135deg, #7C6CE6 0%, #D4A9FF 50%, #E37CE6 100%);
+  --gradient-bg: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
 }
 
 * {
@@ -26,20 +40,21 @@ body {
 
 /* Common UI Elements */
 .btn-primary {
-  background: var(--gradient-btn);
+  background: var(--primary-color);
   color: white;
   border: none;
-  padding: 12px 24px;
-  border-radius: 20px;
+  padding: 10px 20px;
+  border-radius: 8px;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.3s ease, transform 0.2s ease;
-  box-shadow: 0 4px 6px -1px rgba(156, 137, 248, 0.3);
+  transition: all 0.2s ease-in-out;
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
-  opacity: 0.9;
+  background: #4338CA;
   transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 /* Animations */
@@ -68,12 +83,12 @@ body {
 }
 
 .auth-card {
-  background: white;
+  background: var(--surface-color);
   padding: 40px;
-  border-radius: 24px;
+  border-radius: 16px;
   width: 100%;
   max-width: 450px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-lg);
   animation: slideInRight 0.5s ease-out forwards;
 }
 
@@ -112,21 +127,20 @@ body {
   border: 1px solid var(--border-light);
   border-radius: 8px;
   font-size: 14px;
-  transition: all 0.3s ease;
-  background: #fdfdfd;
+  transition: all 0.2s ease-in-out;
+  background: var(--surface-color);
+  color: var(--text-dark);
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(156, 137, 248, 0.2);
-  background: #fff;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
 }
 
 .auth-btn {
   width: 120px;
-  border-radius: 20px;
-  padding: 12px;
+  padding: 10px 20px;
   float: right;
   margin-top: 10px;
 }
@@ -276,3 +290,50 @@ body {
     padding: 20px !important;
   }
 }
+
+/* --- Engaging UI Elements --- */
+
+.animated-gradient-bg {
+  background: linear-gradient(-45deg, #EEF2FF, #E0E7FF, #F3E8FF, #FFFFFF);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+.float-animation {
+  animation: floating 6s ease-in-out infinite;
+}
+
+@keyframes floating {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+  100% { transform: translateY(0px); }
+}
+
+.pulse-glow {
+  animation: pulsingGlow 2s infinite;
+}
+
+@keyframes pulsingGlow {
+  0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(79, 70, 229, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+}
+
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.3s; }
+.stagger-3 { animation-delay: 0.5s; }
+.stagger-4 { animation-delay: 0.7s; }

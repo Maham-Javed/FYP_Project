@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { FiHome, FiUsers, FiAward, FiPlus, FiLogOut } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
+import logoUrl from '../assets/logo.svg';
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -40,15 +41,8 @@ const Sidebar = () => {
       background: 'white'
     }}>
       {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 30px', marginBottom: '30px' }}>
-        <div style={{ 
-          width: '40px', height: '40px', border: '1px solid #ddd', 
-          borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center',
-          fontWeight: 'bold', fontSize: '18px', color: '#111'
-        }}>
-          Xr
-        </div>
-        <span style={{ fontSize: '20px', letterSpacing: '2px', fontWeight: '300', color: '#111' }}>XENON</span>
+      <div style={{ padding: '0 24px', marginBottom: '30px' }}>
+        <img src={logoUrl} alt="Xenon AI" style={{ height: '32px' }} />
       </div>
 
       <div style={{ padding: '0 30px', marginBottom: '20px' }}>
