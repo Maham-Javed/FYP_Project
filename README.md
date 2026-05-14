@@ -9,15 +9,19 @@ Xenon provides an end-to-end recruitment workflow. It allows recruiters to post 
 ### Key Features
 - **Role-Based Workflows**: Dedicated dashboards for both Candidates and Recruiters.
 - **Job Management**: Recruiters can create, edit, and track job postings.
+- **AI-Powered Semantic Matching**: Automatically matches candidate CVs against job descriptions using vector embeddings and cosine similarity. Candidates are auto-selected or rejected based on recruiter-defined thresholds.
 - **Automated Interview Pipeline**: A candidate-facing interface for answering timed interview questions.
 - **Scoring & Evaluation**: Recruiters can view top-scoring candidates and access detailed breakdown views of CV matches and interview scores.
+- **AI Job Recommendations**: Candidates receive AI-ranked job suggestions based on their profile vector.
 - **Real-Time Data**: Integrated with Supabase for fast, secure, and persistent data storage.
 
 ## 🛠️ Technology Stack
 
 - **Frontend**: React.js powered by Vite for lightning-fast development and optimized production builds.
-- **Backend**: Node.js with Express (Foundation set up for upcoming AI integration).
-- **Database & Auth**: Supabase (PostgreSQL) handling user authentication, session management, and persistent data storage.
+- **Backend**: Node.js with Express — modular service-controller architecture.
+- **Database & Auth**: Supabase (PostgreSQL) with pgvector extension for vector similarity search.
+- **AI Embeddings**: HuggingFace Inference API (`BAAI/bge-small-en-v1.5`, 384 dimensions).
+- **AI Interview**: Groq API for LLM-powered question generation and answer evaluation.
 - **Styling**: Vanilla CSS utilizing custom properties (CSS variables) for easy theming and consistent design.
 
 ## 📂 Project Structure
@@ -34,11 +38,13 @@ d:\Xenon-Project\
 │   ├── server.js         # Entry Point
 │   ├── package.json      # Backend Dependencies
 │   └── src/
-│       ├── app.js        # Express App Configuration
-│       ├── config/       # Supabase and other configs
-│       ├── middlewares/  # Auth & Rate Limiting
-│       ├── services/     # AI Logic Stubs
-│       └── utils/        # LLM Clients & Prompts
+│       ├── app.js        # Express App + Route Registration
+│       ├── config/       # Supabase client initialization
+│       ├── controllers/  # Request handlers (application, embedding)
+│       ├── middlewares/  # Auth (JWT) & Rate Limiting
+│       ├── routes/       # REST endpoint definitions
+│       ├── services/     # AI Matching, Embeddings, Interview logic
+│       └── utils/        # LLM Clients & Prompt Templates
 │
 └── src/                  # React Frontend
     ├── assets/           # Images, icons, etc.
@@ -82,6 +88,8 @@ SUPABASE_URL=your_supabase_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 PORT=5000
+HF_API_TOKEN=your_huggingface_token
+GROQ_API_KEY=your_groq_api_key
 ```
 
 *Note: The project is already connected to an active Supabase instance.*

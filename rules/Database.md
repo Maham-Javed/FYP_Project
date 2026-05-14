@@ -45,16 +45,27 @@ Job postings created by recruiters.
 - `positions` (INT) - Number of open roles.
 - `interview_difficulty` (VARCHAR) - Difficulty level for AI questions.
 - `passing_threshold` (INT) - Score needed to pass the AI interview.
-- `job_embedding` (VECTOR) - *[AI Module]* Embeddings for semantic matching.
+- `similarity_threshold` (INT, DEFAULT 60) - **[AI Matching]** Minimum cosine similarity percentage (0–100) required for a candidate to be auto-selected for interview. Set by the recruiter during job creation.
+- `job_embedding` (VECTOR(384)) - **[AI Matching]** Dense vector embedding of the job description, generated via HuggingFace `BAAI/bge-small-en-v1.5`. Used for cosine similarity matching against candidate profiles.
+- `embedding_text_hash` (TEXT) - **[AI Matching]** MD5 hash of the text used to generate `job_embedding`. Used to avoid re-generating embeddings when the job description hasn't changed.
 - `created_at` (TIMESTAMPTZ)
 
+**Constraints:**
+- `chk_similarity_threshold`: `similarity_threshold >= 0 AND similarity_threshold <= 100`
+
 ### 5. `applications`
-Links candidates to the jobs they applied for.
+Links candidates to the jobs they applied for. Now includes AI matching results.
 - `application_id` (UUID, Primary Key)
 - `candidate_id` (UUID, Foreign Key `candidates.candidate_id`)
 - `job_id` (UUID, Foreign Key `jobs.job_id`)
-- `status` (ENUM: 'pending', 'interviewing', 'accepted', 'rejected') - Application progression.
+- `status` (ENUM: 'pending', 'selected_for_interview', 'interviewing', 'accepted', 'rejected', 'under_review') - Application progression. The `selected_for_interview` and `rejected` values are set automatically by the AI matching engine.
+- `match_score` (NUMERIC(5,2)) - **[AI Matching]** Cosine similarity percentage between candidate profile and job description (0.00–100.00).
+- `matched_at` (TIMESTAMPTZ) - **[AI Matching]** Timestamp when the AI matching was computed.
+- `match_metadata` (JSONB) - **[AI Matching]** Metadata about the matching process (model name, dimensions, threshold applied, processing time).
 - `created_at` (TIMESTAMPTZ)
+
+**Constraints:**
+- `chk_match_score`: `match_score IS NULL OR (match_score >= 0 AND match_score <= 100)`
 
 ### 6. `interviews`
 Tracks the AI-driven interview instances per application.
@@ -95,7 +106,8 @@ Parsed and structured data extracted from the candidate's resume.
 - `skills` (TEXT) - Extracted skills.
 - `education` (TEXT) - Extracted education details.
 - `experience_years` (INT) - Total years of experience.
-- `profile_embedding` (VECTOR) - *[AI Module]* Embeddings for resume-job similarity matching.
+- `profile_embedding` (VECTOR(384)) - **[AI Matching]** Dense vector embedding of the candidate's parsed CV, generated via HuggingFace `BAAI/bge-small-en-v1.5`. Used for cosine similarity matching against job descriptions.
+- `embedding_text_hash` (TEXT) - **[AI Matching]** MD5 hash of the text used to generate `profile_embedding`. Used to avoid re-generating embeddings when the CV hasn't changed.
 - `created_at` (TIMESTAMPTZ)
 
 ---
@@ -149,13 +161,18 @@ erDiagram
         uuid recruiter_id FK
         varchar title
         text required_skill
+        int similarity_threshold
         vector job_embedding
+        text embedding_text_hash
     }
     APPLICATIONS {
         uuid application_id PK
         uuid candidate_id FK
         uuid job_id FK
         enum status
+        numeric match_score
+        timestamptz matched_at
+        jsonb match_metadata
     }
     INTERVIEWS {
         uuid interview_id PK
@@ -181,24 +198,68 @@ erDiagram
         uuid candidate_id FK
         text skills
         vector profile_embedding
+        text embedding_text_hash
     }
 ```
 
 **Description:**
-The schema begins with the central `users` table mapping to either `candidates` or `recruiters`. Recruiters create `jobs`. Candidates create `applications` connecting them to specific `jobs`. Once applied, an `application` triggers an `interview` pipeline. The interview encompasses multiple `questions`, each mapping 1-to-1 with candidate `answers`. Separately, candidate resumes are parsed into `resume_parse_data` for vector-based profile matching.
+The schema begins with the central `users` table mapping to either `candidates` or `recruiters`. Recruiters create `jobs`. Candidates create `applications` connecting them to specific `jobs`. When a candidate applies, the AI Matching Engine computes a cosine similarity score between the job embedding and the candidate's profile embedding, automatically setting the application status to `selected_for_interview` or `rejected`. If selected, the `application` triggers an `interview` pipeline. The interview encompasses multiple `questions`, each mapping 1-to-1 with candidate `answers`. Separately, candidate resumes are parsed into `resume_parse_data` for vector-based profile matching.
 
 ---
 
-## E. Use Cases
+## E. Pgvector Configuration
+
+### Extension
+```sql
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+```
+- **Version**: 0.8.0
+- **Schema**: public
+
+### Vector Dimensions
+Both embedding columns use **384 dimensions**, matching the `BAAI/bge-small-en-v1.5` model output from the HuggingFace Inference API (free tier).
+
+### HNSW Indexes
+High-performance indexes for sub-linear cosine similarity search:
+
+| Index | Table | Column | Parameters |
+|-------|-------|--------|------------|
+| `idx_jobs_embedding_hnsw` | `jobs` | `job_embedding` | `m=16, ef_construction=64` |
+| `idx_profile_embedding_hnsw` | `resume_parse_data` | `profile_embedding` | `m=16, ef_construction=64` |
+
+### SQL Functions (Stored Procedures)
+
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `match_candidate_to_job(candidate_id, job_id)` | 1:1 cosine similarity between a specific candidate and job | `similarity_score`, `similarity_percentage`, `meets_threshold`, `job_threshold` |
+| `find_matching_jobs(candidate_id, limit)` | Top-N jobs ranked by similarity to a candidate's profile | Ranked job list with scores and threshold flags |
+| `find_matching_candidates(job_id, limit)` | Top-N candidates ranked by similarity to a job description | Ranked candidate list with scores and threshold flags |
+
+### Cosine Similarity Formula
+```
+similarity = 1 - (profile_embedding <=> job_embedding)
+percentage = similarity * 100
+```
+The `<=>` operator in pgvector computes **cosine distance**. Subtracting from 1 converts it to **cosine similarity** (0 = completely dissimilar, 1 = identical).
+
+---
+
+## F. Use Cases
 
 1. **Recruiter Posts a Job:**
    - A row is inserted in `jobs` referencing their `recruiter_id`.
-   - Embeddings are generated and stored in `job_embedding` for AI candidate matching.
+   - The `similarity_threshold` is set by the recruiter (default: 60%).
+   - The backend's `EmbeddingService` generates a 384-dimensional vector from the job description and stores it in `job_embedding`.
+   - The `embedding_text_hash` is stored to enable content-change detection.
    
-2. **Candidate Applies to Job:**
-   - A row is created in `applications` linking `candidate_id` and `job_id`.
-   - The status defaults to `'pending'`.
-   
+2. **Candidate Applies to Job (AI Matching Pipeline):**
+   - A row is created in `applications` linking `candidate_id` and `job_id` (status: `pending`).
+   - The `EmbeddingService` ensures both embeddings exist (generating any missing ones via HuggingFace API).
+   - The `MatchingService` calls `match_candidate_to_job()` in Postgres.
+   - If `match_score >= similarity_threshold`: status → `selected_for_interview`.
+   - If `match_score < similarity_threshold`: status → `rejected`.
+   - The `match_score`, `matched_at`, and `match_metadata` are saved to the application.
+
 3. **AI Interview Process Flow:**
    - Application status updates to `'interviewing'`.
    - An `interviews` record is initialized.
@@ -208,14 +269,33 @@ The schema begins with the central `users` table mapping to either `candidates` 
 
 ---
 
-## F. Future-Ready Fields (AI Integration)
-- `job_embedding` (`jobs`) & `profile_embedding` (`resume_parse_data`): Uses `pgvector` to run semantic cosine-similarity searches (TF-IDF/BERT matching) so we can rank the best-fit candidates for a job instantly.
-- `ai_feedback` (`answers`): To show candidates automated, constructive critique on why they missed certain marks.
-- `current_difficulty_level` (`interviews`): Supports dynamic, adaptive interviewing where the GPT engine adjusts question complexity based on previous answer scores.
+## G. AI Matching Fields Reference
+
+| Field | Table | Type | Purpose |
+|-------|-------|------|---------|
+| `job_embedding` | `jobs` | `vector(384)` | Job description vector for similarity search |
+| `profile_embedding` | `resume_parse_data` | `vector(384)` | Candidate CV vector for similarity search |
+| `embedding_text_hash` | `jobs`, `resume_parse_data` | `text` | MD5 hash to detect content changes and skip redundant API calls |
+| `similarity_threshold` | `jobs` | `integer` | Recruiter-defined minimum match percentage |
+| `match_score` | `applications` | `numeric(5,2)` | Computed cosine similarity percentage |
+| `matched_at` | `applications` | `timestamptz` | When matching was computed |
+| `match_metadata` | `applications` | `jsonb` | Model name, dimensions, threshold, processing time |
+| `ai_feedback` | `answers` | `text` | AI's feedback on candidate's interview response |
+| `current_difficulty_level` | `interviews` | `varchar` | Adaptive interview difficulty state |
 
 ---
 
-## F2. Future Enhancements
+## H. Design Decisions
+- **UUIDs over Auto-Incrementing Integers**: Prevents predictable enumeration of resources (security) and scales seamlessly across distributed systems.
+- **Supabase & Postgres**: Selected for native Row Level Security (RLS), real-time capabilities, and `pgvector` for our ML/AI pipeline.
+- **Strict Normalization (1NF - 3NF)**: Prevents data anomalies. `questions` and `answers` are decoupled to ensure scoring logic and question generation can happen asynchronously without locking table rows.
+- **384 Dimensions (not 1536)**: Uses the free HuggingFace model `BAAI/bge-small-en-v1.5` which outputs 384 dimensions. This is sufficient for FYP-scale data and enables faster similarity computation.
+- **HNSW Indexes (not IVFFlat)**: HNSW provides better recall at small-to-medium data sizes and requires no training step.
+- **Content Hash Deduplication**: The `embedding_text_hash` columns store an MD5 of the normalized text to avoid costly re-embedding API calls when content hasn't changed.
+
+---
+
+## I. Future Enhancements
 - **Logging & Audit Trail**: Introduction of an `audit_logs` table to track who modifies job statuses or interview scores.
 - **Advanced Analytics**: Aggregated tables or materialized views summarizing candidate pass rates by recruiter or specific job categories.
 - **Real-Time Notifications**: Extension of `applications` schema to trigger row-level Webhooks (via Supabase) pushing in-app alerts whenever interview statuses change.
@@ -223,20 +303,14 @@ The schema begins with the central `users` table mapping to either `candidates` 
 
 ---
 
-## G. Design Decisions
-- **UUIDs over Auto-Incrementing Integers**: Prevents predictable enumeration of resources (security) and scales seamlessly across distributed systems.
-- **Supabase & Postgres**: Selected for native Row Level Security (RLS), real-time capabilities, and `pgvector` for our upcoming ML/AI pipeline.
-- **Strict Normalization (1NF - 3NF)**: Prevents data anomalies. `questions` and `answers` are decoupled to ensure scoring logic and question generation can happen asynchronously without locking table rows.
-
----
-
-## H. Update Rules
+## J. Update Rules
 
 > **IMPORTANT: Auto-Update Mechanism**
 > Whenever a new table, column, or relationship is added to the Supabase database:
 > 1. Update the **Schema Design** section to define the new data types.
 > 2. Document any new relationships in the **Relationships** list.
 > 3. Adjust the **ER Diagram** to accurately reflect the data flow.
-> 4. Ensure that FYP mentors or new contributors can understand the change by adding relevant context to the **Use Cases** or **Design Decisions**.
+> 4. If vector/AI columns are added, update the **Pgvector Configuration** section.
+> 5. Ensure that FYP mentors or new contributors can understand the change by adding relevant context to the **Use Cases** or **Design Decisions**.
 > 
 > *Do not consider a database migration complete until this file is fully updated.*
