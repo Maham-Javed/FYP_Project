@@ -6,24 +6,33 @@ This document explains the organization, functionality, and connection logic of 
 
 ## 1. Folder Structure
 
-To ensure modularity and scalability, the backend follows an MVC-inspired Service-Controller architecture.
+To ensure modularity and scalability, the backend follows a decoupled **Service-Repository-Controller** architecture.
 
 ```text
 backend/
 ├── src/
-│   ├── app.js                        # Express application setup & route registration
+│   ├── app.js                        # Express application setup & global error registration
 │   ├── config/
+│   │   ├── env.js                    # Boot-time Zod environment validator (New)
 │   │   └── supabase.js               # Supabase client initialization (anon + admin)
 │   ├── controllers/
 │   │   ├── application.controller.js # Application workflow (apply, status, rematch)
-│   │   └── embedding.controller.js   # Embedding management (generate, check status)
+│   │   ├── embedding.controller.js   # Embedding management (generate, check status)
+│   │   └── interview.controller.js   # Request dispatcher and controller (Refactored)
 │   ├── middlewares/
 │   │   ├── auth.js                   # JWT verification & role-based access control
-│   │   └── rateLimiter.js            # General API + AI-specific rate limits
+│   │   ├── rateLimiter.js            # General API + AI-specific rate limits
+│   │   ├── errorHandler.js           # Express global error handler & HTTP exceptions (New)
+│   │   ├── logger.js                 # Microsecond-precision hrtime performance logger (New)
+│   │   └── validate.js               # Generic Zod validation middleware (New)
+│   ├── repositories/                 # Supabase query abstraction layer (New)
+│   │   └── interview.repository.js   # 16-method decoupled DB operations repository
 │   ├── routes/
 │   │   ├── application.routes.js     # /api/applications/* endpoints
 │   │   ├── embedding.routes.js       # /api/embeddings/* endpoints
-│   │   └── matching.routes.js        # /api/matching/* endpoints
+│   │   ├── matching.routes.js        # /api/matching/* endpoints
+│   │   ├── interview.routes.js       # Secured candidate interview endpoints
+│   │   └── interview.validation.js   # Declarative Zod schemas (New)
 │   ├── services/
 │   │   ├── aiService.js              # Interview AI (question generation, answer evaluation)
 │   │   ├── embedding.service.js      # Vector embedding generation & storage (HuggingFace)
@@ -41,75 +50,99 @@ backend/
 
 ## 2. Directory Breakdown
 
+### `config/`
+- **Purpose**: Server and third-party configuration files.
+- **Key Modules**:
+  - `env.js`: Fast Zod validation of `process.env` immediately at boot. Halts startup on incorrect or missing keys.
+  - `supabase.js`: Exports Supabase `supabaseAnon` and `supabaseAdmin` clients.
+
 ### `routes/`
-- **Purpose**: Defines the HTTP endpoints and maps them to specific controllers.
-- **Rules**: No business logic is allowed here. Only route definitions and middleware chaining (e.g., Auth checks).
-- **Route Groups**:
-  - `application.routes.js` — Core application workflow (apply, status, recommendations)
-  - `embedding.routes.js` — Explicit embedding management (generate, check readiness)
-  - `matching.routes.js` — Batch re-matching and preview scores
-
-### `controllers/`
-- **Purpose**: Acts as the middleman between routes and services.
-- **Rules**: 
-  - Extracts parameters from `req.body` and `req.params`.
-  - Validates inputs and ownership (candidate owns application, recruiter owns job).
-  - Calls the corresponding function in the `services/` layer.
-  - Returns structured HTTP responses (`res.status(200).json(...)`).
-  - Does *not* write raw SQL or complex logic.
-- **Files**:
-  - `application.controller.js` — 7 endpoint handlers for the application workflow
-  - `embedding.controller.js` — 3 endpoint handlers for embedding management
-
-### `services/`
-- **Purpose**: The core engine of the application. Contains all business rules, database calls, and AI integrations.
-- **Rules**: 
-  - Functions here should be reusable and decoupled from the Express `req/res` objects.
-  - This layer communicates directly with Supabase and external APIs (HuggingFace, Groq).
-- **Files**:
-  - `embedding.service.js` — Generates vector embeddings via HuggingFace Inference API, stores them in pgvector columns, uses MD5 content hashing to avoid redundant API calls.
-  - `matching.service.js` — Orchestrates the matching pipeline: ensures embeddings exist, calls the `match_candidate_to_job` Postgres function, evaluates thresholds, updates application status.
-  - `aiService.js` — Interview AI logic (question generation, answer evaluation via LLM).
+- **Purpose**: Defines the HTTP endpoints, chains verification middlewares, and applies validation schemas.
+- **Rules**: No business logic or input parsing is allowed here.
+- **Payload Boundaries**: Route definitions register explicit Zod schemas inside `interview.validation.js` using the generic `validate` middleware to parse client inputs before hitting controllers.
 
 ### `middlewares/`
-- **Purpose**: Intercepts requests before they reach the controller.
+- **Purpose**: Intercepts requests to enforce security, perform schema validations, track performance, and handle operational errors.
 - **Key Middlewares**:
-  - `auth.js` (`verifyAuth`): Verifies the Supabase JWT token via `supabase.auth.getUser()`.
-  - `auth.js` (`requireRole`): Ensures Candidates cannot hit Recruiter endpoints and vice-versa by checking `user_metadata.role`.
-  - `rateLimiter.js` (`apiLimiter`): 100 requests per 15 minutes per IP (global).
-  - `rateLimiter.js` (`aiLimiter`): 10 requests per 15 minutes per IP (AI-intensive endpoints only).
+  - `auth.js` (`verifyAuth` / `requireRole`): Decodes Supabase JWT tokens and verifies candidate or recruiter roles.
+  - `validate.js`: Parses client payloads against Zod validation definitions, rejecting malformed requests immediately with a 400 status.
+  - `errorHandler.js`: The Express Global Error Handler. It catches operational exceptions and formats standard JSON responses.
+  - `logger.js`: Custom lightweight middleware tracking request pipelines down to microsecond latency using `process.hrtime`, logging colorized terminal status codes.
+  - `rateLimiter.js`: Protects AI-intensive endpoints from API abuse.
+
+### `controllers/`
+- **Purpose**: Acts as the dispatcher layer handling incoming REST requests.
+- **Rules**:
+  - Extracts parameters and delegates database operations immediately to the `repositories/` layer.
+  - Coordinates complex flows using the `services/` layer.
+  - **Zero Boilerplate**: Controllers do not contain `try/catch` wrappers or inline database logic. Any error is forwarded via `next(err)` to be processed globally.
+
+### `repositories/` (Repository Pattern)
+- **Purpose**: Decouples active database operations from controller classes.
+- **Rules**:
+  - Contains all direct database queries, mutations, insertions, and SDK interaction logic.
+  - Simplifies testing and keeps controllers slim, clean, and database-agnostic.
+  - `interview.repository.js` isolates 16 distinct database operations for complete separation of concerns.
+
+### `services/`
+- **Purpose**: Renders computational business rules and coordinates external API calls (Groq, HuggingFace).
+- **Rules**:
+  - Encapsulates isolated algorithms such as text hashing (MD5), exponential retry loops, LLM prompt formatting, and matching threshold checks.
 
 ---
 
-## 3. How the Backend Connects to Supabase
+## 3. Data Integration Patterns
 
-The backend uses the official `@supabase/supabase-js` SDK to communicate with the database securely. 
+### 3a. Centralized HTTP Exceptions
+To secure clean and descriptive client error messaging, the system implements sub-classed HTTP Operational Errors defined inside `middlewares/errorHandler.js`:
+* `AppError`: Base class formatting stacktraces and operational tags.
+* `BadRequestError` (400): Standard code for invalid actions or parameters.
+* `UnauthorizedError` (401): Missing or failed JWT tokens.
+* `ForbiddenError` (403): Accessing a resource without proper roles.
+* `NotFoundError` (404): Resource not found in Supabase.
 
-1. **Configuration (`config/supabase.js`)**:
-   Two clients are initialized:
-   - `supabase` (anon key): For user-scoped operations, respects RLS policies.
-   - `supabaseAdmin` (service role key): For background AI processing that must bypass RLS (embedding storage, match score updates).
-   
-2. **Execution**:
-   In the `services/` layer, queries are executed like so:
-   ```javascript
-   const { data, error } = await supabaseAdmin
-       .from('jobs')
-       .update({ job_embedding: vectorString, embedding_text_hash: hash })
-       .eq('job_id', jobId);
-   ```
+### 3b. Repository Pattern Integration
+Database interactions are isolated within the Repository class:
+```javascript
+// backend/src/repositories/interview.repository.js
+static async getApplicationAndJob(applicationId, candidateId) {
+  const { data, error } = await supabaseAdmin
+    .from('applications')
+    .select(`
+      application_id,
+      candidate_id,
+      status,
+      jobs (job_id, title, passing_threshold)
+    `)
+    .eq('application_id', applicationId)
+    .eq('candidate_id', candidateId)
+    .single();
 
-3. **RPC Calls (Vector Operations)**:
-   Postgres functions are called via Supabase RPC:
-   ```javascript
-   const { data, error } = await supabaseAdmin.rpc('match_candidate_to_job', {
-       p_candidate_id: candidateId,
-       p_job_id: jobId
-   });
-   ```
+  if (error) return null;
+  return data;
+}
+```
 
-4. **Authentication Hand-off**:
-   The frontend sends the Supabase JWT in the `Authorization` header. The backend `verifyAuth` middleware decodes it via `supabase.auth.getUser(token)` to validate the request before executing sensitive operations.
+### 3c. Atomic Database Transactions (Supabase RPCs)
+Multi-step writes are executed atomically inside the database using PL/pgSQL database-level functions:
+* `start_interview_atomic`: Inserts a new row into the `interviews` table and updates the status of the corresponding application to `interviewing` in a single atomic transaction.
+* `finalize_interview_atomic`: Updates the status of the interview to `completed`, records final metrics, and updates the application status (`accepted` or `rejected`) atomically.
+
+These database stored procedures are invoked using Supabase RPC method wrapper functions within the repository class:
+```javascript
+// backend/src/repositories/interview.repository.js
+static async startInterviewAtomic(applicationId, initialDifficulty) {
+  const { data, error } = await supabaseAdmin
+    .rpc('start_interview_atomic', {
+      p_application_id: applicationId,
+      p_initial_difficulty: initialDifficulty
+    })
+    .single();
+
+  if (error) throw new Error(`Failed to atomically start interview: ${error.message}`);
+  return data;
+}
+```
 
 ---
 
@@ -118,39 +151,16 @@ The backend uses the official `@supabase/supabase-js` SDK to communicate with th
 The AI integrations are strictly encapsulated within the **`services/`** layer to maintain separation of concerns.
 
 ### 4a. Embedding Service (`services/embedding.service.js`)
-- **Provider**: HuggingFace Inference API (free tier)
 - **Model**: `BAAI/bge-small-en-v1.5` (384 dimensions)
-- **Triggered when**:
-  - Recruiter creates or updates a job posting
-  - Candidate uploads or updates their CV
-  - Candidate applies to a job (ensures both embeddings exist)
-- **Key Features**:
-  - Content-hash deduplication (MD5): skips API call if text unchanged
-  - Retry logic with exponential backoff (handles 429 rate limits, 503 cold starts)
-  - Text normalization pipeline (lowercase, collapse whitespace, remove non-semantic chars)
+- **Features**: MD5 text content hashing, caching layers, and exponential backoff loops protecting against API rate-limits.
 
 ### 4b. Matching Service (`services/matching.service.js`)
-- **Purpose**: Orchestrates the decision pipeline during job applications
-- **Flow**:
-  1. Calls `EmbeddingService.ensureEmbeddings()` to guarantee vectors exist
-  2. Calls `match_candidate_to_job()` Postgres function for cosine similarity
-  3. Compares result against recruiter's `similarity_threshold`
-  4. Updates application status to `selected_for_interview` or `rejected`
-  5. Stores `match_score`, `matched_at`, and `match_metadata`
+- **Algorithm**: Cosine similarity via pgvector's `<=>` operator.
+- **Purpose**: Computes vector distance on postgres, updates status automatically, and records decision metadata.
 
 ### 4c. Interview AI (`services/aiService.js`)
-- **Provider**: Groq API (for LLM inference)
-- **Purpose**: Generates dynamic interview questions and evaluates candidate answers
-- **Triggered via**: `POST /api/interviews/answer` route
-- **Flow**: Formats a strict prompt → sends to LLM → parses JSON response → saves score and feedback
-
-### Provider Separation
-| Concern | Provider | Model | Why |
-|---------|----------|-------|-----|
-| **Embeddings** (vectors) | HuggingFace | `BAAI/bge-small-en-v1.5` | Free, 384d, production-quality |
-| **LLM Inference** (chat) | Groq | LLM models | Fast inference, interview Q&A |
-
-> **Note**: Groq does NOT provide embedding models. HuggingFace handles all vector generation.
+- **Provider**: Groq API (LLM inference)
+- **Purpose**: Renders dynamic prompt parameters, executes adaptive interview question selection, and evaluates answers.
 
 ---
 
@@ -161,37 +171,17 @@ The AI integrations are strictly encapsulated within the **`services/`** layer t
 cd backend
 npm install
 
-# Production mode
-npm start
-
-# Development mode (auto-reload via nodemon)
+# Start in Development mode (includes watch routines)
 npm run dev
 ```
 
-The server starts on port 5000 by default (configured in `.env`).
-
 ---
 
-## 6. Environment Variables
-
-| Variable | Purpose |
-|----------|---------|
-| `SUPABASE_URL` | Supabase project API URL |
-| `SUPABASE_ANON_KEY` | Public anon key for user-scoped operations |
-| `SUPABASE_SERVICE_ROLE_KEY` | Admin key for background AI processing (bypasses RLS) |
-| `PORT` | Server port (default: 5000) |
-| `HF_API_TOKEN` | HuggingFace Inference API token for embedding generation |
-| `GROQ_API_KEY` | Groq API key for LLM inference (interview AI) |
-
----
-
-## 7. Update Rules
+## 6. Update Rules
 
 > **IMPORTANT: Auto-Update Mechanism**
 > Whenever the backend architecture is modified:
-> 1. If a new architectural layer is added (e.g., `crons/`, `workers/`), update the **Folder Structure** and **Directory Breakdown**.
-> 2. If the connection method to Supabase changes (e.g., moving to GraphQL or raw pg routing), update the **Supabase Connection** section.
-> 3. If a new AI provider replaces HuggingFace or Groq, document the shift in the **AI Service Architecture** section.
-> 4. If new routes or controllers are added, update the **Folder Structure** tree.
-> 
-> *This documentation ensures new backend developers can immediately understand the data flow.*
+> 1. If a new architectural layer is added (e.g., repositories, crons), update the **Folder Structure** and **Directory Breakdown**.
+> 2. Document any new middlewares or global error handlers in Section 3a.
+> 3. Document new repository classes and database query models in Section 3b.
+> 4. Keep this file updated to assure compliance with team structural principles.

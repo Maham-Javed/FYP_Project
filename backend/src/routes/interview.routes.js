@@ -3,6 +3,8 @@ const router = express.Router();
 const InterviewController = require('../controllers/interview.controller');
 const { verifyAuth, requireRole } = require('../middlewares/auth');
 const { aiLimiter } = require('../middlewares/rateLimiter');
+const validate = require('../middlewares/validate');
+const { startInterviewSchema, submitAnswerSchema } = require('./interview.validation');
 
 /**
  * POST /api/interviews/start
@@ -13,6 +15,7 @@ router.post(
   verifyAuth,
   requireRole('candidate'),
   aiLimiter,
+  validate(startInterviewSchema),
   InterviewController.startInterview
 );
 
@@ -25,6 +28,7 @@ router.post(
   verifyAuth,
   requireRole('candidate'),
   aiLimiter,
+  validate(submitAnswerSchema),
   InterviewController.submitAnswer
 );
 

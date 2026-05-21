@@ -1,20 +1,38 @@
 # System Design & Architecture
 
 ## A. High-Level Architecture
-The AI-Based Candidate Recruitment System follows a modern, scalable **Three-Tier Architecture** with integrated AI service modules. This decouples the user interface, business logic, and data layers, while the AI modules are encapsulated within the service layer for maximum modularity.
+The AI-Based Candidate Recruitment System follows a modern, scalable **Three-Tier Architecture** with integrated AI service modules. This decouples the user interface, business logic, and data layers. In this refactored structure, a dedicated **Repository Layer** abstracts all direct database interactions, keeping controllers highly modular.
 
 ```mermaid
 flowchart TD
     subgraph Client ["Frontend Layer"]
         UI[React Application]
+        EB[React Error Boundary]
+        LS[React.lazy & Suspense Loader]
+        
+        UI --> EB
+        EB --> LS
     end
 
     subgraph API ["Backend Layer"]
+        EnvV[Env Validator Zod]
         Node["Node.js / Express Server"]
+        
+        EnvV -->|Boot-Time check| Node
+        
+        subgraph Middlewares ["Validation, Exception & Logging Layer"]
+            AL[API Performance Logger]
+            Zod["Zod Payload Validator"]
+            GE["Global Error Handler"]
+        end
         subgraph Services ["Service Layer"]
             ES["EmbeddingService<br/>(HuggingFace)"]
             MS["MatchingService<br/>(pgvector cosine)"]
             AIS["AIService<br/>(Groq LLM)"]
+        end
+        subgraph Repositories ["Data Access Layer (Repository)"]
+            IR["InterviewRepository"]
+            RPC["PL/pgSQL RPC Transactions<br/>(start_interview_atomic / finalize_interview_atomic)"]
         end
     end
 
@@ -23,71 +41,61 @@ flowchart TD
         Groq["Groq API<br/>LLM Inference"]
     end
 
-    subgraph Data ["Data & Auth Layer"]
+    subgraph Data ["Database & Auth Store"]
         Supa["Supabase PostgreSQL"]
         PGV["pgvector Extension<br/>HNSW Indexes"]
         Auth["Supabase Auth<br/>JWT Management"]
     end
 
-    UI <-->|REST API JSON| Node
-    UI <-->|Direct Auth| Auth
-    Node <--> Services
+    LS <-->|REST API JSON| Node
+    LS <-->|Direct Auth| Auth
+    Node <--> Middlewares
+    Middlewares <--> Services
+    Node <--> Repositories
+    Services <--> Repositories
+    IR --> RPC
+    
     ES <-->|REST POST| HF
     AIS <-->|REST POST| Groq
-    ES <-->|Store/Fetch Vectors| PGV
+    
+    RPC <-->|Atomic ACID Queries| Supa
+    IR <-->|Store/Fetch Vectors| PGV
     MS <-->|RPC Cosine Similarity| PGV
-    AIS <-->|Read/Write| Supa
-    Node <-->|CRUD Operations| Supa
+    IR <-->|CRUD Operations| Supa
+    Auth <-->|Session Verification| Node
 ```
 
 ---
 
 ## B. Component Breakdown
 
-### 1. Frontend (React)
+### 1. Frontend (React with Vite)
 - **Responsibility**: Handles user interaction, state management, and view rendering.
 - **Key Features**: 
   - Role-based dynamic dashboards for Candidates and Recruiters.
   - Interactive job application and interview UI.
-  - Direct integration with Supabase Auth for immediate JWT retrieval.
-  - Displays AI match scores and recommendation rankings.
+  - **Dynamic Route Code-Splitting**: Pages are lazy-loaded via `React.lazy` and wrapped in a premium dark-mode, glassmorphic loading screen utilizing dynamic conic-spin animations to minimize initial bundle sizes.
+  - **Resilient React Error Boundary**: Integrates custom Error Boundary wrappers targeting route failure chunks (caused by patchy networks or sudden disconnections) and client crashes, providing high-quality visual fallbacks and immediate reload recovery prompts.
 
-### 2. Backend (Node.js / Express)
-- **Responsibility**: Acts as the central orchestrator for business logic, data validation, AI processing, and secure communication with the database.
+### 2. Backend Layer (Express)
+- **Responsibility**: Orchestrates API workflows, validates configurations, records audits, sanitizes request parameters, and handles runtime failures.
 - **Key Features**:
-  - Exposes RESTful endpoints for CRUD operations (Jobs, Applications).
-  - Validates request payloads and enforces role-based access control (RBAC).
-  - Handles secure orchestration between the frontend, the database, and AI providers.
-  - Manages the AI matching pipeline (embedding generation → similarity computation → threshold evaluation).
+  - **Boot-Time Environment Variable Validator**: Restricts boot-up sequences using a declarative Zod env schema to check type-safety and formatting on all critical API keys and URLs, outputting clear, detailed errors and exit codes on missing fields.
+  - **Custom performance-hrtime Request Logger**: Seamlessly intercepts Express requests to track performance down to microsecond decimals via `process.hrtime`, logging styled status codes in terminal.
+  - **Zod Declarative Validation**: Intercepts payloads at the route layer, protecting logic from invalid or malformed data schemas.
+  - **Global Error Handling**: Express middleware intercepts all thrown operational errors (`BadRequestError`, `ForbiddenError`, `NotFoundError`), responding to the client with unified, standard structures.
 
-### 3. Database & Auth (Supabase)
-- **Responsibility**: Manages persistent storage, user identity, and vector similarity operations.
+### 3. Repository Layer (Data Access Isolation)
+- **Responsibility**: Encapsulates all query commands, mutations, stored procedure executions, and Supabase database interactions.
 - **Key Features**:
-  - PostgreSQL relational structure with 9 tables.
-  - `pgvector` extension with HNSW indexes for fast cosine similarity search.
-  - Stored SQL functions (`match_candidate_to_job`, `find_matching_jobs`, `find_matching_candidates`) that execute vector math directly in the database.
-  - Built-in JWT verification and user session management.
+  - Exposes 16 clean repository methods to the controller layer.
+  - **PL/pgSQL Stored Procedure RPC Transactions**: Moves sequential client-side database awaits into secure, single Postgres transactional SQL procedures (`start_interview_atomic`, `finalize_interview_atomic`), safeguarding ACID guarantees.
+  - Completely separates direct SQL/Supabase operations from REST controllers.
 
-### 4. AI Modules (Implemented)
-
-#### 4a. Embedding Service (HuggingFace)
-- **Model**: `BAAI/bge-small-en-v1.5` (384 dimensions)
-- **Provider**: HuggingFace Inference API (free tier)
-- **Purpose**: Converts job descriptions and candidate CVs into dense vector representations for semantic comparison.
-- **Key Design**:
-  - Content-hash deduplication (MD5) to avoid redundant API calls
-  - Retry logic with exponential backoff for rate limits and cold starts
-  - Text normalization pipeline for consistent embeddings
-
-#### 4b. Matching Engine (pgvector)
-- **Algorithm**: Cosine similarity via pgvector's `<=>` operator
-- **Index**: HNSW (Hierarchical Navigable Small World) for sub-linear search
-- **Purpose**: Computes the semantic similarity between a candidate profile and a job description, evaluates against the recruiter's threshold, and automatically updates the application status.
-
-#### 4c. Interview AI (Groq)
-- **Provider**: Groq API (LLM inference)
-- **Purpose**: Dynamically generates interview questions and evaluates candidate responses via prompt engineering.
-- **Note**: Groq provides only LLM inference, NOT embeddings. HuggingFace is used for all embedding operations.
+### 4. AI Service Layer
+- **Embedding Service**: Generates dense 384-dimensional vector embeddings using HuggingFace Inference API (`BAAI/bge-small-en-v1.5`). Implements content-hashing (MD5) to avoid duplicate API requests.
+- **Matching Engine**: Coordinates cosine similarity via Postgres pgvector operators, automatically updating application workflow flags.
+- **Interview AI (Groq API)**: Orchestrates adaptive question prompts and parses technical feedback scores (0-10) using fast LLM inference engines.
 
 ---
 
@@ -135,88 +143,81 @@ sequenceDiagram
     B-->>C: 201 { application, match result }
 ```
 
-### Interview Pipeline (After Selection)
+### Dynamic Interview Pipeline (With Repository, Atomic RPCs, and Error Boundary)
 ```mermaid
 sequenceDiagram
     participant C as Candidate (Frontend)
-    participant B as Backend (Node.js)
+    participant EB as ErrorBoundary
+    participant L as Performance Logger
+    participant B as Controller (Express)
+    participant R as Repository Layer
+    participant RPC as Postgres RPC (PL/pgSQL)
     participant AI as Groq API
     participant DB as Supabase DB
 
-    C->>B: 1. Starts AI Interview
-    B->>AI: 2. Request Dynamic Question
-    AI-->>B: Return Question Text
-    B->>DB: 3. Save Question to DB
-    B-->>C: Display Question to Candidate
-
-    C->>B: 4. Submits Answer
-    B->>AI: 5. Evaluate Answer (Groq LLM)
-    AI-->>B: Return Score & Feedback
-    B->>DB: 6. Save Answer & Score
-    B-->>C: Next Question or Final Results
+    Note over C: Boot Zod Env Check complete
+    C->>EB: Render page route
+    EB->>C: Render active view
+    
+    C->>L: POST /api/interviews/start { application_id }
+    L->>B: Forward Request (Timer start)
+    Note over B: Zod Schema Validation
+    B->>R: resolveCandidateId(userId)
+    R-->>B: candidateId
+    B->>R: getApplicationAndJob(applicationId, candidateId)
+    R-->>B: application details
+    
+    B->>B: Check status & duplicates
+    
+    B->>R: startInterviewAtomic(appId, initialDifficulty)
+    R->>RPC: rpc('start_interview_atomic')
+    RPC->>DB: INSERT interview & UPDATE status (Atomic)
+    DB-->>R: Return transaction status
+    R-->>B: Saved interview details
+    
+    B->>AI: Request Dynamic Question (Seq 1)
+    AI-->>B: Question object (text & keywords)
+    B->>R: saveGeneratedQuestion(interviewId, question)
+    R-->>B: Saved question
+    B-->>L: Return 201 Response
+    L-->>C: Forward 201 Response (Log Method, Status, Latency in ms)
 ```
 
 ---
 
-## D. Modular Design Explanation
-The system uses a strictly modular approach, primarily seen in the backend structure (`controllers/`, `services/`, `routes/`, `middlewares/`). 
-
-- **Modularity**: Each domain (Auth, Jobs, Applications, Embeddings, Matching, Interviews) has its own encapsulated logic. The Application controller does not handle Embedding generation directly — it delegates to the service layer.
-- **Interchangeability**: The AI modules are abstracted behind service classes:
-  - `EmbeddingService` can switch from HuggingFace to OpenAI or a local model by changing only the API call inside `_generateEmbedding()`.
-  - `MatchingService` is provider-agnostic — it only consumes vectors stored in the database.
-  - `AIService` can swap Groq for any OpenAI-compatible LLM by updating `llmClient.js`.
-
----
-
-## E. Separation of Concerns
+## D. Separation of Concerns
 
 | Layer | Responsibility | Example |
 |-------|---------------|---------|
-| **Routing** | Maps HTTP requests to controller functions. Contains no business logic. | `router.post('/apply', verifyAuth, requireRole('candidate'), aiLimiter, controller.applyToJob)` |
-| **Controller** | Extracts request data, validates inputs, calls services, formats HTTP response. | `ApplicationController.applyToJob()` — validates, creates app, calls `MatchingService`, returns result |
-| **Service** | Contains core business rules. Only layer that interacts with AI providers and constructs complex DB queries. | `MatchingService.processApplicationMatch()` — orchestrates embeddings, similarity, threshold, status update |
-| **Data Access** | Supabase SDK calls and pgvector RPC functions. | `supabaseAdmin.rpc('match_candidate_to_job', ...)` |
+| **Routing** | Directs HTTP traffic. Chains Zod validation and Auth middlewares. | `router.post('/start', verifyAuth, requireRole('candidate'), validate(startInterviewSchema), controller.startInterview)` |
+| **Middlewares** | Validates payloads, handles authentication tokens, and formats global errors. | `validate(schema)` parses input bodies; `globalErrorHandler` catches thrown custom exceptions. |
+| **Controller** | Processes endpoints, delegates queries to repositories, coordinates services, returns responses. | `InterviewController.startInterview()` — slim methods without try/catch boilerplate. |
+| **Repository** | Pure database CRUD execution. Communicates directly with Supabase Postgres. | `InterviewRepository.createInterview(appId, initialDifficulty)` |
+| **Service** | Handles business logic (Hashing, prompt-formatting, external LLM calls). | `AIService.getNextQuestion(title, difficulty, topic)` |
 
 ---
 
-## F. Threshold Logic
-
-The system uses a **two-tier threshold** model:
-
-| Threshold | Table | Purpose | Set By |
-|-----------|-------|---------|--------|
-| `similarity_threshold` | `jobs` | Minimum cosine similarity % for AI pre-screening | Recruiter (during job creation) |
-| `passing_threshold` | `jobs` | Minimum interview score to pass the AI interview | Recruiter (during job creation) |
-
-**Decision Flow:**
-1. **Pre-screening (AI Matching)**: `match_score >= similarity_threshold` → `selected_for_interview`
-2. **Interview Phase**: `total_score >= passing_threshold` → `pass` / `accepted`
-
-This two-tier approach ensures candidates are first filtered by profile relevance, then evaluated on actual skill demonstration.
-
----
-
-## G. Performance Optimizations
+## E. Performance Optimizations
 
 | Optimization | Implementation |
 |-------------|---------------|
-| **Embedding Deduplication** | MD5 content hash prevents redundant HuggingFace API calls when text unchanged |
-| **HNSW Indexes** | Sub-linear vector search on both `job_embedding` and `profile_embedding` |
-| **Pre-generated Embeddings** | Embeddings generated when jobs are created/updated, not during application |
-| **Cached Vectors** | During application, stored embeddings are reused — no API call needed |
-| **Sequential Batch Processing** | Batch re-matching processes applications one-by-one to respect rate limits |
-| **Rate Limiting** | AI endpoints limited to 10 req/15min to protect HuggingFace free tier |
+| **Vite Code Splitting** | `React.lazy()` dynamically compiles route chunks to avoid rendering heavy initial bundles. |
+| **Glassmorphic Suspense** | Sleek animated spinners themed to Xenon's dark mode aesthetics run during dynamic route transitions. |
+| **React Error Boundary** | Catches dynamic asset loading failures and renders a premium recovery window. |
+| **Zod Boot Env Validator** | Ensures no missing configs or invalid API credentials trigger cryptic server failures. |
+| **hrtime Performance Logger** | In-house microsecond request audit tracker mapping request pipeline latency. |
+| **Atomic SQL Transactions** | Encapsulates sequential mutations inside PG pl/pgsql functions to guarantee database consistency. |
+| **Embedding Deduplication** | MD5 content hash prevents redundant HuggingFace API calls when text unchanged. |
+| **HNSW Indexes** | Sub-linear vector search on both `job_embedding` and `profile_embedding` using HNSW graphs. |
+| **Pre-generated Embeddings** | Embeddings generated when jobs are created/updated, not during application. |
+| **Cached Vectors** | During application, stored embeddings are reused — no API call needed. |
 
 ---
 
-## H. Update Rules
+## F. Update Rules
 
 > **IMPORTANT: Auto-Update Mechanism**
-> Whenever the architecture changes (e.g., adding a microservice, changing the frontend framework, integrating a new external API):
+> Whenever the architecture changes:
 > 1. Update the **High-Level Architecture** diagram to visually represent the new node.
-> 2. Add the new component to the **Component Breakdown** section.
-> 3. If a core process changes (like how authentication, matching, or interviewing works), update the **Data Flow Diagram** sequence.
-> 4. If a new AI provider is introduced, document it in the **AI Modules** section with model name, dimensions, and provider.
-> 
-> *Maintain this file as the ultimate source of truth for the project's structural integrity.*
+> 2. Document the new layer under the **Separation of Concerns** matrix.
+> 3. Add any new data caching or load optimization techniques to Section E.

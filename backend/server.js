@@ -1,6 +1,8 @@
 // Server Entry Point
 // Loads environment variables and starts the Express application.
-require('dotenv').config();
+const { validateEnv } = require('./src/config/env');
+validateEnv();
+
 const { app } = require('./src/app');
 
 // Determine port and start listening for incoming HTTP requests

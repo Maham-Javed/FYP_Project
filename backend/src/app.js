@@ -3,6 +3,7 @@
 const express = require('express');
 const cors = require('cors');
 const { apiLimiter } = require('./middlewares/rateLimiter');
+const apiLogger = require('./middlewares/logger');
 
 // ── Route Imports ─────────────────────────────────────────────
 const applicationRoutes = require('./routes/application.routes');
@@ -16,6 +17,7 @@ const app = express();
 // ── Global Middleware ─────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
+app.use(apiLogger);
 app.use('/api', apiLimiter);
 
 // ── Health Check ──────────────────────────────────────────────
@@ -43,15 +45,8 @@ app.use('/api/resume', resumeRoutes);
 app.use('/api/interviews', interviewRoutes);
 
 // ── Global Error Handler ──────────────────────────────────────
-// Catches unhandled errors from async route handlers
-// eslint-disable-next-line no-unused-vars
-app.use((err, req, res, next) => {
-  console.error('[GlobalErrorHandler]', err);
-  res.status(err.status || 500).json({
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
+const { globalErrorHandler } = require('./middlewares/errorHandler');
+app.use(globalErrorHandler);
 
 module.exports = { app };
 
