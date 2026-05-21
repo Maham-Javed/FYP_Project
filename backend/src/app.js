@@ -8,6 +8,8 @@ const { apiLimiter } = require('./middlewares/rateLimiter');
 const applicationRoutes = require('./routes/application.routes');
 const embeddingRoutes = require('./routes/embedding.routes');
 const matchingRoutes = require('./routes/matching.routes');
+const resumeRoutes = require('./routes/resume.routes');
+const interviewRoutes = require('./routes/interview.routes');
 
 const app = express();
 
@@ -34,9 +36,16 @@ app.use('/api/embeddings', embeddingRoutes);
 // Matching engine: batch re-match, preview scores
 app.use('/api/matching', matchingRoutes);
 
+// Resume parsing and processing
+app.use('/api/resume', resumeRoutes);
+
+// AI Interview process
+app.use('/api/interviews', interviewRoutes);
+
 // ── Global Error Handler ──────────────────────────────────────
 // Catches unhandled errors from async route handlers
-app.use((err, req, res, _next) => {
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
   console.error('[GlobalErrorHandler]', err);
   res.status(err.status || 500).json({
     error: 'Internal server error',

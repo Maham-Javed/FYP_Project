@@ -49,7 +49,7 @@ const CandidateAppliedJobs = () => {
              // Map status to what the UI expects (since DB uses pending/interviewing)
              const mapStatus = (dbStatus) => {
                if (dbStatus === 'pending') return 'Applied';
-               if (dbStatus === 'interviewing') return 'Shortlisted';
+               if (dbStatus === 'selected_for_interview' || dbStatus === 'interviewing') return 'Shortlisted';
                if (dbStatus === 'accepted') return 'Accepted';
                if (dbStatus === 'rejected') return 'Rejected';
                return dbStatus || 'Applied';
@@ -224,20 +224,20 @@ const CandidateAppliedJobs = () => {
               </tr>
             </thead>
             <tbody>
-              {applications.length === 0 ? (
+              {applications.filter(app => app.status === 'Shortlisted').length === 0 ? (
                 <tr>
                   <td colSpan="4" style={{ padding: '15px 10px', textAlign: 'center', color: '#6B7280' }}>
                     No upcoming interviews.
                   </td>
                 </tr>
               ) : (
-                applications.map((app, index) => (
+                applications.filter(app => app.status === 'Shortlisted').map((app, index) => (
                   <tr key={`int-${index}`} style={{ borderBottom: '1px solid #E5E7EB' }}>
                     <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>AI-Interview</td>
                     <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>{app.title}</td>
                     <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>{app.interviewDate}</td>
                     <td style={{ padding: '15px 10px', fontSize: '14px' }}>
-                      <button onClick={() => navigate('/candidate-interview-info')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}>View Details</button>
+                      <button onClick={() => navigate('/candidate-interview-info', { state: { application: app } })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}>View Details</button>
                     </td>
                   </tr>
                 ))

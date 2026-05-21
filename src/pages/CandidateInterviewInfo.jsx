@@ -1,9 +1,11 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
 
 const CandidateInterviewInfo = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { application } = location.state || {};
 
   return (
     <div className="auth-container" style={{ position: 'relative', overflow: 'hidden' }}>
@@ -37,6 +39,15 @@ const CandidateInterviewInfo = () => {
           Interview Information
         </h2>
         
+        {application?.title && (
+          <div style={{ marginBottom: '25px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', marginBottom: '8px' }}>Position</h3>
+            <p style={{ fontSize: '15px', color: '#4F46E5', fontWeight: '600', paddingLeft: '15px', margin: 0 }}>
+              {application.title}
+            </p>
+          </div>
+        )}
+
         <div style={{ marginBottom: '25px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', marginBottom: '8px' }}>Interview Type</h3>
           <p style={{ fontSize: '15px', color: '#444', paddingLeft: '15px', margin: 0 }}>
@@ -46,20 +57,20 @@ const CandidateInterviewInfo = () => {
 
         <div style={{ display: 'flex', gap: '40px', marginBottom: '25px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', margin: 0 }}>
-            Total Interview Question: <span style={{ fontWeight: 'normal', color: '#444', marginLeft: '10px' }}>10</span>
+            Total Interview Questions: <span style={{ fontWeight: 'normal', color: '#444', marginLeft: '10px' }}>5</span>
           </h3>
         </div>
 
         <div style={{ display: 'flex', gap: '40px', marginBottom: '30px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', margin: 0 }}>
-            Interview Duration: <span style={{ fontWeight: 'normal', color: '#444', marginLeft: '10px' }}>50 min</span>
+            Interview Duration: <span style={{ fontWeight: 'normal', color: '#444', marginLeft: '10px' }}>25 min (5 min per question)</span>
           </h3>
         </div>
 
         <div style={{ marginBottom: '40px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', marginBottom: '15px' }}>Description:</h3>
           <p style={{ fontSize: '15px', color: '#444', lineHeight: '1.6', marginBottom: '15px' }}>
-            The interview will be conducted through an AI-powered system designed to assess the candidate's technical knowledge, problem-solving ability, and communication skills. Candidates will respond to a mix of technical, scenario-based, and behavioral questions. Responses may be in the form of multiple-choice answers, short written responses, or recorded video/audio answers. The AI system evaluates answers based on accuracy, clarity, relevance, and confidence.
+            The interview will be conducted through an AI-powered system designed to assess the candidate's technical knowledge, problem-solving ability, and communication skills. Candidates will respond to 5 dynamic, tailored questions, where difficulty scales automatically based on your response scores.
           </p>
           <p style={{ fontSize: '15px', color: '#444', lineHeight: '1.6', marginBottom: '10px' }}>
             Candidates may be automatically disqualified if any of the following are detected:
@@ -75,7 +86,7 @@ const CandidateInterviewInfo = () => {
         
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px' }}>
           <button 
-            onClick={() => navigate('/candidate-interview')}
+            onClick={() => navigate('/candidate-interview', { state: { application } })}
             style={{
               background: 'var(--primary-color)', color: 'white', border: 'none',
               padding: '14px 45px', borderRadius: '30px', fontWeight: '600',

@@ -1,5 +1,7 @@
 const LLMClient = require('../utils/llmClient');
 const prompts = require('../utils/prompts/interviewPrompts');
+const { supabaseAdmin } = require('../config/supabase');
+const EmbeddingService = require('./embedding.service');
 
 /**
  * Service orchestrating AI-related business logic.
@@ -51,14 +53,46 @@ class AIService {
      * Asynchronous resume parsing 
      * E.g., returns JSON representation of skills, education, experience
      */
-    static async parseResume(resumeText) {
-        // Implementation stub
-        console.log("Parsing resume text of length:", resumeText?.length);
-        return {
-           skills: [],
-           education: "",
-           experience_years: 0
-        };
+    static async parseResume(candidateId, resumeText) {
+        try {
+            console.log(`[AIService] Parsing resume for candidate ${candidateId} (text length: ${resumeText?.length})`);
+            
+            const userPrompt = prompts.resumeParserPrompt(resumeText);
+            const parsed = await LLMClient.generateJSON(
+                prompts.RESUME_PARSER_SYSTEM_PROMPT,
+                userPrompt,
+                { temperature: 0.1 }
+            );
+
+            console.log(`[AIService] Successfully parsed resume. Upserting into resume_parse_data...`);
+
+            const { data, error } = await supabaseAdmin
+                .from('resume_parse_data')
+                .upsert({
+                    candidate_id: candidateId,
+                    skills: parsed.skills,
+                    education: parsed.education,
+                    experience_years: parsed.experience_years
+                }, { onConflict: 'candidate_id' })
+                .select()
+                .single();
+
+            if (error) {
+                console.error("[AIService] Failed to upsert parsed resume data:", error);
+                throw new Error(`Failed to save parsed resume data: ${error.message}`);
+            }
+
+            console.log(`[AIService] Saved parsed resume data. Generating embedding...`);
+            
+            // Build profile text and generate/store profile embedding
+            const profileText = EmbeddingService.buildProfileText(data);
+            await EmbeddingService.generateProfileEmbedding(candidateId, profileText);
+
+            return data;
+        } catch (error) {
+            console.error("Error parsing resume:", error);
+            throw error;
+        }
     }
 }
 

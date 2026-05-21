@@ -1,69 +1,173 @@
-import React, { useState, useEffect } from 'react';
-import logoUrl from '../assets/logo.svg';
-import { useNavigate } from 'react-router-dom';
-import { FiHome, FiUsers, FiClipboard, FiLogOut, FiArrowLeft } from 'react-icons/fi';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { FiHome, FiUsers, FiClipboard, FiLogOut, FiArrowLeft, FiClock, FiAlertCircle } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
+import logoUrl from '../assets/logo.svg';
 
-// CandidateInterview Component
-// This component renders the automated interview interface for candidates.
-// It manages the timer, current question progression, and submission of the interview.
 const CandidateInterview = () => {
   const navigate = useNavigate();
-  // Candidate profile state
-  const [candidate, setCandidate] = useState({ firstName: 'Loading...', lastName: '', email: '' });
-  // Timer state (5 minutes = 300 seconds)
-  const [timeLeft, setTimeLeft] = useState(300); 
-  // Current question index state
-  const [currentQuestion, setCurrentQuestion] = useState(1);
-  // Submission and toast states
+  const location = useLocation();
+  const { application } = location.state || {};
+
+  // Interview state
+  const [interviewId, setInterviewId] = useState(null);
+  const [currentQuestionId, setCurrentQuestionId] = useState(null);
+  const [currentQuestionText, setCurrentQuestionText] = useState("");
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(1);
+  const [candidateResponse, setCandidateResponse] = useState("");
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const totalQuestions = 10;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [finished, setFinished] = useState(false);
+
+  const totalQuestions = 5;
+  const responseRef = useRef(candidateResponse);
+
+  // Sync response text to ref to prevent stale closure in timer callback
+  useEffect(() => {
+    responseRef.current = candidateResponse;
+  }, [candidateResponse]);
 
   useEffect(() => {
-    // Load candidate profile
-    const loadUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const fullName = user.user_metadata?.name || 'Candidate User';
-        const parts = fullName.split(' ');
-        setCandidate({
-          firstName: parts[0] || '',
-          lastName: parts.slice(1).join(' ') || '',
-          email: user.email
-        });
-      }
-    };
-    loadUser();
+    // 1. Check if application info is passed in state
+    if (!application?.id) {
+      setError("No active session found. Please start the interview process from your Applied Jobs dashboard.");
+      setLoading(false);
+      return;
+    }
 
-    // Timer logic
+    startInterviewSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Timer Countdown logic
+  useEffect(() => {
+    if (loading || isSubmitting || !interviewId || finished) return;
+
     const timerId = setInterval(() => {
-      setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timerId);
+          // Time expired! Trigger auto-submit
+          handleAutoSubmit();
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => clearInterval(timerId);
-  }, [currentQuestion]); // Reset behavior can be added if it changes, but here timer just runs. Let's make it fixed per question.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, isSubmitting, interviewId, currentQuestionId, finished]);
 
-  // Remove the useEffect that sets timeLeft based on currentQuestion to fix lint error
-  // The timer reset is now handled in handleNext.
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
+  const startInterviewSession = async () => {
+    try {
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError("No authenticated session found. Please log in.");
+        setLoading(false);
+        return;
+      }
+      const token = session.access_token;
+      
+      const response = await fetch('http://localhost:5000/api/interviews/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ application_id: application.id })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        // If interview is already finished
+        if (response.status === 409 && data.status === 'completed') {
+          setError("You have already completed the interview for this application.");
+          setInterviewId(data.interview_id);
+          setFinished(true);
+          setLoading(false);
+          return;
+        }
+        throw new Error(data.error || "Failed to start interview.");
+      }
+
+      setInterviewId(data.interview_id);
+      if (data.finished) {
+        setFinished(true);
+        navigate('/candidate-interview-score', { state: { interviewId: data.interview_id } });
+      } else if (data.question) {
+        setCurrentQuestionId(data.question.question_id);
+        setCurrentQuestionText(data.question.question_text);
+        setCurrentQuestionIndex(data.question.sequence_number);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error("Error starting interview:", err);
+      setError(err.message || "An unexpected error occurred while starting the interview.");
+      setLoading(false);
+    }
   };
 
-  // Proceed to next question or submit if finished
-  const handleNext = () => {
-    if (currentQuestion < totalQuestions) {
-      setCurrentQuestion(prev => prev + 1);
-      setTimeLeft(300); // Reset timer here to avoid setting state in effect
-    } else {
-      // Finished
+  const submitAnswer = async (isAuto = false) => {
+    if (isSubmitting) return;
+    try {
       setIsSubmitting(true);
-      setShowToast(true);
-      setTimeout(() => {
-        navigate('/candidate-interview-score');
-      }, 3000);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert("Session expired. Please log in again.");
+        setIsSubmitting(false);
+        return;
+      }
+      const token = session.access_token;
+      const timeTaken = 300 - timeLeft;
+      const finalResponse = isAuto ? responseRef.current : candidateResponse;
+
+      const response = await fetch(`http://localhost:5000/api/interviews/${interviewId}/answer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          question_id: currentQuestionId,
+          candidate_response: finalResponse.trim() || (isAuto ? "No response provided within the time limit." : "Skipped / No response provided."),
+          time_taken_seconds: timeTaken
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to submit answer.");
+      }
+
+      if (data.finished) {
+        setFinished(true);
+        // Show success toast
+        setShowToast(true);
+        setTimeout(() => {
+          navigate('/candidate-interview-score', { state: { interviewId } });
+        }, 2500);
+      } else if (data.nextQuestion) {
+        setCurrentQuestionId(data.nextQuestion.question_id);
+        setCurrentQuestionText(data.nextQuestion.question_text);
+        setCurrentQuestionIndex(data.nextQuestion.sequence_number);
+        setCandidateResponse("");
+        setTimeLeft(300);
+        setIsSubmitting(false);
+      }
+    } catch (err) {
+      console.error("Error submitting answer:", err);
+      alert(err.message || "An error occurred while submitting your answer.");
+      setIsSubmitting(false);
     }
+  };
+
+  const handleAutoSubmit = () => {
+    submitAnswer(true);
   };
 
   const formatTime = (seconds) => {
@@ -72,188 +176,186 @@ const CandidateInterview = () => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const initial = candidate.firstName.charAt(0).toUpperCase();
-  const displayNumbers = currentQuestion <= 5 ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10];
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#F9FAFB', fontFamily: "'Inter', sans-serif" }}>
+        <div style={{ border: '4px solid rgba(79, 70, 229, 0.1)', borderLeftColor: '#4F46E5', borderRadius: '50%', width: '50px', height: '50px', animation: 'spin 1s linear infinite', marginBottom: '20px' }}></div>
+        <p style={{ color: '#6B7280', fontSize: '16px', fontWeight: '500' }}>Initializing secure interview session...</p>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#F9FAFB', fontFamily: "'Inter', sans-serif", padding: '20px' }}>
+        <div style={{ background: '#FFFFFF', padding: '40px', borderRadius: '24px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05)', maxWidth: '500px', textAlign: 'center', border: '1px solid #E5E7EB' }}>
+          <FiAlertCircle size={48} color="#EF4444" style={{ marginBottom: '20px', margin: '0 auto' }} />
+          <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#111827', marginBottom: '10px' }}>Unable to Start Interview</h3>
+          <p style={{ color: '#6B7280', fontSize: '15px', lineHeight: '1.6', marginBottom: '30px' }}>{error}</p>
+          <button 
+            onClick={() => navigate('/candidate-applied-jobs')}
+            style={{
+              background: '#4F46E5', color: '#FFFFFF', border: 'none', padding: '12px 30px', borderRadius: '30px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#FFFFFF', fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column' }}>
       {showToast && (
         <div style={{
           position: 'fixed', top: '30px', left: '50%', transform: 'translateX(-50%)',
           background: '#FFFFFF', padding: '16px 24px', borderRadius: '12px',
           boxShadow: '0 8px 30px rgba(0,0,0,0.12)', zIndex: 9999, display: 'flex',
-          alignItems: 'center', gap: '15px', borderLeft: '5px solid var(--primary-color)',
-          animation: 'slideDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+          alignItems: 'center', gap: '15px', borderLeft: '5px solid #10B981',
           minWidth: '340px'
         }}>
           <div style={{
-            background: 'var(--sidebar-active-bg)', color: 'var(--primary-color)', borderRadius: '50%', width: '28px', height: '28px',
+            background: '#D1FAE5', color: '#10B981', borderRadius: '50%', width: '28px', height: '28px',
             display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', flexShrink: 0
           }}>
             ✓
           </div>
           <div style={{ flex: 1 }}>
             <h4 style={{ margin: 0, color: '#111', fontSize: '15px', fontWeight: 'bold' }}>Success</h4>
-            <p style={{ margin: '2px 0 0', color: '#4B5563', fontSize: '14px' }}>Interview has successfully submitted.</p>
+            <p style={{ margin: '2px 0 0', color: '#4B5563', fontSize: '14px' }}>Interview completed successfully. Evaluating final score...</p>
           </div>
         </div>
       )}
-      
-      {/* Sidebar */}
-      <div style={{ 
-        width: '280px', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column',
-        padding: '30px 0', flexShrink: 0
+
+      {/* Immersive Mode Header */}
+      <header style={{
+        background: '#FFFFFF', borderBottom: '1px solid #E5E7EB', padding: '16px 40px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100
       }}>
-                <div style={{ padding: '0 24px', marginBottom: '30px' }}>
-          <img src={logoUrl} alt="Xenon AI" style={{ height: '32px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src={logoUrl} alt="Xenon AI" style={{ height: '24px' }} />
+          <span style={{ fontSize: '14px', fontWeight: '600', color: '#6B7280', paddingLeft: '12px', borderLeft: '1px solid #E5E7EB' }}>
+            {application?.title || 'Technical Assessment'}
+          </span>
         </div>
-
-        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ 
-            display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 30px', 
-            color: '#4B5563', cursor: 'pointer'
-          }} onClick={() => navigate('/candidate-dashboard')}>
-            <FiHome size={22} />
-            <span style={{ fontWeight: '500', fontSize: '16px' }}>Home</span>
-          </div>
-          <div style={{ 
-            display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 30px', 
-            color: '#4B5563', cursor: 'pointer'
-          }} onClick={() => navigate('/candidate-applied-jobs')}>
-            <FiUsers size={22} />
-            <span style={{ fontWeight: '500', fontSize: '16px' }}>Applied Jobs</span>
-          </div>
-          <div style={{ 
-            display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 30px', 
-            background: 'var(--sidebar-active-bg)', color: '#111', cursor: 'pointer',
-            borderLeft: '4px solid var(--primary-color)'
-          }}>
-            <FiClipboard size={22} color="var(--primary-color)" />
-            <span style={{ fontWeight: '600', fontSize: '16px' }}>Interview</span>
-          </div>
-        </nav>
-
-        <div style={{ 
-          padding: '20px 30px', borderTop: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '15px'
-        }}>
-          <div style={{ 
-            width: '40px', height: '40px', borderRadius: '50%', background: '#D1FAE5',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', color: '#10B981'
-          }}>
-            {initial}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '15px', fontWeight: '600', color: '#111', lineHeight: '1.2' }}>{candidate.firstName} {candidate.lastName}</div>
-            <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate.email}</div>
-          </div>
-          <FiLogOut size={22} color="var(--primary-color)" cursor="pointer" onClick={handleLogout} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: timeLeft < 60 ? '#FEE2E2' : '#F3F4F6', padding: '8px 16px', borderRadius: '20px', transition: 'all 0.3s' }}>
+          <FiClock size={16} color={timeLeft < 60 ? '#EF4444' : '#4B5563'} />
+          <span style={{ fontSize: '15px', fontWeight: '700', color: timeLeft < 60 ? '#EF4444' : '#111827', fontFamily: 'monospace' }}>
+            {formatTime(timeLeft)}
+          </span>
         </div>
+      </header>
+
+      {/* Progress Bar container */}
+      <div style={{ width: '100%', height: '4px', background: '#E5E7EB', position: 'relative' }}>
+        <div style={{
+          width: `${(currentQuestionIndex / totalQuestions) * 100}%`,
+          height: '100%',
+          background: 'linear-gradient(90deg, #4F46E5, #8B5CF6)',
+          transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+        }}></div>
       </div>
 
-      {/* Main Content Area */}
-      <div style={{ flex: 1, padding: '40px 60px', overflowY: 'auto' }}>
-        
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px', borderBottom: '1px solid #E5E7EB', paddingBottom: '20px' }}>
-          <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-            <FiArrowLeft size={28} color="#111" />
-          </button>
-          <h1 style={{ fontSize: '26px', fontWeight: 'bold', color: '#111', margin: 0 }}>Automated Interview</h1>
-        </div>
-
-        {/* Outer Container */}
-        <div style={{ 
-          border: '2px solid var(--primary-color)', borderRadius: '24px', padding: '20px', 
-          background: '#FFFFFF', minHeight: '600px', display: 'flex', flexDirection: 'column'
-        }}>
+      {/* Focused Center Layout */}
+      <main style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px 20px' }}>
+        <div style={{ width: '100%', maxWidth: '800px', background: '#FFFFFF', borderRadius: '24px', padding: '40px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03)', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', gap: '30px' }}>
           
-          {/* Inner Question Card */}
-          <div style={{ 
-            border: '2px solid #E2D9FC', borderRadius: '20px', padding: '40px', 
-            flex: 1, display: 'flex', flexDirection: 'column', position: 'relative'
-          }}>
-            
-            {/* Question Header & Timer */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ 
-                  width: '50px', height: '50px', borderRadius: '50%', border: '2px solid var(--primary-color)',
-                  display: 'flex', justifyContent: 'center', alignItems: 'center',
-                  fontSize: '22px', fontWeight: 'bold', color: '#111'
-                }}>
-                  {currentQuestion}
-                </div>
-                <h2 style={{ fontSize: '32px', fontWeight: 'bold', color: '#111', margin: 0 }}>Question</h2>
-              </div>
-              <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#111' }}>
-                {formatTime(timeLeft)}
-              </div>
-            </div>
-
-            {/* Question Text */}
-            <div style={{ flex: 1 }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', marginBottom: '15px' }}>
-                Data Integrity & Transaction Handling:
-              </h3>
-              <p style={{ fontSize: '15px', color: '#111', lineHeight: '1.6', marginBottom: '30px' }}>
-                "You are designing a banking application database. There are Accounts (AccountID, Balance) and Transactions (TransactionID, FromAccount, ToAccount, Amount, TransactionDate). Explain how you would ensure that money is not lost or duplicated during a transfer between accounts. Write SQL statements or pseudo-code to demonstrate the transaction handling using appropriate SQL commands."
-              </p>
-            </div>
-
-            {/* Text Area */}
-            <div style={{ marginTop: 'auto' }}>
-              <textarea 
-                placeholder="Type here......"
-                style={{
-                  width: '100%', minHeight: '120px', background: '#E2E8F0', border: 'none',
-                  borderRadius: '30px', padding: '20px 30px', fontSize: '15px',
-                  color: '#111', resize: 'none', outline: 'none'
-                }}
-              ></textarea>
-            </div>
-            
+          {/* Question Index Badge */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ background: '#EEF2FF', color: '#4F46E5', padding: '6px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Question {currentQuestionIndex} of {totalQuestions}
+            </span>
+            <span style={{ fontSize: '13px', color: '#9CA3AF' }}>
+              Auto-submits when timer expires
+            </span>
           </div>
 
-          {/* Progress Indicator */}
-          <div style={{ padding: '30px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-            {/* The line connecting circles */}
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '300px', height: '2px', background: 'var(--primary-color)', zIndex: 0 }}></div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', width: '350px', position: 'relative', zIndex: 1 }}>
-              {displayNumbers.map(num => (
-                <div key={num} style={{ 
-                  width: '45px', height: '45px', borderRadius: '50%', background: '#FFFFFF',
-                  border: `2px solid var(--primary-color)`,
-                  display: 'flex', justifyContent: 'center', alignItems: 'center',
-                  fontSize: '16px', fontWeight: 'bold', color: '#111',
-                  boxShadow: num === currentQuestion ? '0 0 0 4px rgba(156, 137, 248, 0.2)' : 'none',
-                  transition: 'all 0.3s'
-                }}>
-                  {num}
-                </div>
-              ))}
-            </div>
+          {/* Question Content */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#111827', lineHeight: '1.5' }}>
+              {currentQuestionText || "Generating next question..."}
+            </h2>
           </div>
 
-          {/* Next Button */}
-          <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: '10px' }}>
-            <button 
-              onClick={handleNext}
-              disabled={isSubmitting}
+          {/* Answer Input Area */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '13px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Your Response:
+            </label>
+            <textarea 
+              value={candidateResponse}
+              onChange={(e) => setCandidateResponse(e.target.value)}
+              disabled={isSubmitting || finished}
+              placeholder="Type your structured answer here. Include code examples, key architectural patterns, or logic flow details as needed..."
               style={{
-                background: 'var(--primary-color)', color: 'white', border: 'none',
-                padding: '12px 60px', borderRadius: '30px', fontWeight: '500',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer', fontSize: '16px', transition: 'all 0.2s',
-                boxShadow: '0 4px 15px rgba(156, 137, 248, 0.4)', opacity: isSubmitting ? 0.7 : 1
+                width: '100%',
+                minHeight: '200px',
+                background: '#FFFFFF',
+                border: '1.5px solid #E5E7EB',
+                borderRadius: '16px',
+                padding: '20px',
+                fontSize: '16px',
+                lineHeight: '1.6',
+                color: '#111827',
+                resize: 'vertical',
+                outline: 'none',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.02)',
+                transition: 'all 0.2s ease-in-out',
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#4F46E5';
+                e.target.style.boxShadow = '0 0 0 4px rgba(79, 70, 229, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.05)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#E5E7EB';
+                e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.02)';
+              }}
+            />
+          </div>
+
+          {/* Navigation / Action Row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+            <span style={{ fontSize: '14px', color: '#6B7280', fontStyle: 'italic' }}>
+              Please do not refresh the page during the interview.
+            </span>
+            <button 
+              onClick={() => submitAnswer(false)}
+              disabled={isSubmitting || finished}
+              style={{
+                background: 'linear-gradient(135deg, #4F46E5, #8B5CF6)',
+                color: '#FFFFFF',
+                border: 'none',
+                padding: '14px 45px',
+                borderRadius: '30px',
+                fontWeight: '600',
+                cursor: (isSubmitting || finished) ? 'not-allowed' : 'pointer',
+                fontSize: '16px',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 15px rgba(79, 70, 229, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => {
+                if (!isSubmitting && !finished) e.target.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                if (!isSubmitting && !finished) e.target.style.transform = 'translateY(0)';
               }}
             >
-              {isSubmitting ? 'Submitting...' : (currentQuestion === totalQuestions ? 'Submit' : 'Next')}
+              {isSubmitting ? 'Evaluating...' : (currentQuestionIndex === totalQuestions ? 'Submit Interview' : 'Next Question')}
             </button>
           </div>
 
         </div>
-
-      </div>
+      </main>
     </div>
   );
 };

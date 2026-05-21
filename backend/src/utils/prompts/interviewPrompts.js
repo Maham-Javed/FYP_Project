@@ -34,8 +34,29 @@ Respond with JSON containing:
 }
 `;
 
+const RESUME_PARSER_SYSTEM_PROMPT = `You are an expert AI Resume Parser. Your task is to extract structured details from the provided resume text.
+You must return your output strictly in JSON format. Do not write any preamble, explanation, or conversational text.`;
+
+const resumeParserPrompt = (resumeText) => `
+Analyze the following resume text and extract the candidate's skills, education history, and approximate total years of experience.
+
+Resume Text:
+"""
+${resumeText}
+"""
+
+Return JSON format:
+{
+  "skills": "Comma-separated list of technical and soft skills",
+  "education": "Summary of education (degrees, universities, graduation years)",
+  "experience_years": integer (estimated total years of experience, default to 0 if not found)
+}
+`;
+
 module.exports = {
     INTERVIEW_SYSTEM_PROMPT,
     generateQuestionPrompt,
-    evaluateAnswerPrompt
+    evaluateAnswerPrompt,
+    RESUME_PARSER_SYSTEM_PROMPT,
+    resumeParserPrompt
 };

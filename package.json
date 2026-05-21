@@ -4,11 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run frontend\" \"npm run backend\"",
+    "dev": "concurrently \"npm run frontend\" \"npm run backend\" \"npm run docs:watch\"",
     "frontend": "vite",
     "backend": "npm start --prefix backend",
     "build": "vite build",
     "lint": "eslint .",
+    "docs": "node scripts/syncDocs.cjs",
+    "docs:watch": "node scripts/syncDocs.cjs --watch",
     "preview": "vite preview"
   },
   "dependencies": {

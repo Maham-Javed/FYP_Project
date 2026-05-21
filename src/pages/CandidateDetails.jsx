@@ -39,6 +39,7 @@ const CandidateDetails = () => {
       }, 3000);
     }
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [popupMessage]); // Added 'closePopup' to dependencies? Actually, closePopup is re-created every render, so we shouldn't add it unless we useCallback, or just ignore for now or use navigate directly.
   // The linter warning was in another file regarding closePopup. In CandidateDetails, no warning was raised for closePopup.
 

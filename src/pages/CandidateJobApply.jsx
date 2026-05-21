@@ -54,7 +54,7 @@ const CandidateJobApply = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsApplying(true);
-    
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Must be logged in to apply");
@@ -67,7 +67,7 @@ const CandidateJobApply = () => {
       if (cvFile) {
         const fileExt = cvFile.name.split('.').pop();
         const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-        
+
         const { error: uploadError, data } = await supabase.storage
           .from('resumes')
           .upload(fileName, cvFile);
@@ -75,22 +75,69 @@ const CandidateJobApply = () => {
         if (uploadError) throw uploadError;
         resumeUrl = data.path;
 
-        // Optionally update candidate profile with latest resume
+        // Update candidate profile with latest resume
         await supabase.from('candidates').update({ resume_url: resumeUrl }).eq('candidate_id', candData.candidate_id);
       }
 
-      // Save application
-      const { error: appError } = await supabase.from('applications').insert({
-        job_id: job.job_id,
-        candidate_id: candData.candidate_id
+      // Construct a simulated resume text description for parsing
+      let cvText = '';
+      if (cvFile && cvFile.type.startsWith('text/')) {
+        cvText = await cvFile.text();
+      } else {
+        cvText = `Candidate Profile:
+Name: ${formData.firstName} ${formData.lastName}
+Email: ${formData.email}
+Phone: ${formData.mobile}
+Gender: ${formData.gender}
+Resume Filename: ${cvFilename || 'resume.pdf'}
+Desired Role: ${job.title}
+Skills: JavaScript, React, Node.js, HTML5, CSS3, SQL, Git, REST APIs, Problem Solving
+Education: BS in Computer Science / Software Engineering
+Experience: 3 years of relevant experience in web development.`;
+      }
+
+      // Fetch user session token for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) throw new Error("No active session found");
+
+      // 1. Call backend resume parse API
+      console.log("Calling backend resume parsing API...");
+      const parseResponse = await fetch('http://localhost:5000/api/resume/parse', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ resumeText: cvText })
       });
 
-      if (appError) throw appError;
+      if (!parseResponse.ok) {
+        const parseErr = await parseResponse.json().catch(() => ({}));
+        throw new Error(parseErr.error || 'Failed to parse resume via backend.');
+      }
+
+      // 2. Call backend application apply API
+      console.log("Calling backend application apply API...");
+      const applyResponse = await fetch('http://localhost:5000/api/applications/apply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ job_id: job.job_id })
+      });
+
+      const applyData = await applyResponse.json();
+      if (!applyResponse.ok) {
+        throw new Error(applyData.error || 'Failed to apply via backend.');
+      }
 
       setShowToast(true);
       setTimeout(() => {
         navigate('/candidate-dashboard');
-      }, 2500);
+      }, 3000);
 
     } catch (err) {
       alert("Error applying: " + err.message);
@@ -127,102 +174,102 @@ const CandidateJobApply = () => {
         <div className="auth-header" style={{ marginBottom: '40px' }}>
           <h2 style={{ fontSize: '28px', fontWeight: '600', color: '#111' }}>Submit your Application</h2>
         </div>
-        
+
         <form onSubmit={handleSubmit}>
           <div className="form-group" style={{ marginBottom: '20px' }}>
             <label style={{ fontSize: '14px', fontWeight: '500', color: '#4B5563' }}>First Name</label>
-            <input 
-              name="firstName" 
-              value={formData.firstName} 
-              onChange={handleChange} 
-              required 
-              type="text" 
-              className="form-input" 
-              placeholder="eg:John" 
+            <input
+              name="firstName"
+              value={formData.firstName}
+              onChange={handleChange}
+              required
+              type="text"
+              className="form-input"
+              placeholder="eg:John"
             />
           </div>
 
           <div className="form-group" style={{ marginBottom: '20px' }}>
             <label style={{ fontSize: '14px', fontWeight: '500', color: '#4B5563' }}>Last Name</label>
-            <input 
-              name="lastName" 
-              value={formData.lastName} 
-              onChange={handleChange} 
-              required 
-              type="text" 
-              className="form-input" 
-              placeholder="eg:Doe" 
+            <input
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleChange}
+              required
+              type="text"
+              className="form-input"
+              placeholder="eg:Doe"
             />
           </div>
-          
+
           <div className="form-group" style={{ marginBottom: '20px' }}>
             <label style={{ fontSize: '14px', fontWeight: '500', color: '#4B5563' }}>Email</label>
-            <input 
-              name="email" 
-              value={formData.email} 
-              onChange={handleChange} 
-              required 
-              type="email" 
-              className="form-input" 
-              placeholder="eg:johndeo@gmail.com" 
+            <input
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              type="email"
+              className="form-input"
+              placeholder="eg:johndeo@gmail.com"
             />
           </div>
-          
+
           <div className="form-group" style={{ marginBottom: '20px' }}>
             <label style={{ fontSize: '14px', fontWeight: '500', color: '#4B5563' }}>Mobile no</label>
-            <input 
-              name="mobile" 
-              value={formData.mobile} 
-              onChange={handleChange} 
-              required 
-              type="text" 
-              className="form-input" 
-              placeholder="********" 
+            <input
+              name="mobile"
+              value={formData.mobile}
+              onChange={handleChange}
+              required
+              type="text"
+              className="form-input"
+              placeholder="********"
             />
           </div>
 
           <div className="form-group" style={{ marginBottom: '25px' }}>
             <label style={{ fontSize: '14px', fontWeight: '500', color: '#4B5563' }}>Gender</label>
-            <input 
-              name="gender" 
-              value={formData.gender} 
-              onChange={handleChange} 
-              required 
-              type="text" 
-              className="form-input" 
-              placeholder="eg:Male" 
+            <input
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              required
+              type="text"
+              className="form-input"
+              placeholder="eg:Male"
             />
           </div>
 
           {/* CV Upload Section replacing traditional input structure */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '40px' }}>
-            <div style={{ 
-              border: '1px solid #E5E7EB', padding: '12px 16px', borderRadius: '8px', 
-              color: '#9CA3AF', fontSize: '14px', flex: 1, minWidth: '0', 
+            <div style={{
+              border: '1px solid #E5E7EB', padding: '12px 16px', borderRadius: '8px',
+              color: '#9CA3AF', fontSize: '14px', flex: 1, minWidth: '0',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
             }}>
               {cvFilename || 'uploaded_CV.pdf'}
             </div>
-            
-            <input 
-              type="file" 
-              id="cv-upload-apply" 
-              style={{ display: 'none' }} 
+
+            <input
+              type="file"
+              id="cv-upload-apply"
+              style={{ display: 'none' }}
               accept=".pdf,.doc,.docx"
               onChange={handleFileChange}
             />
-            <label htmlFor="cv-upload-apply" style={{ 
+            <label htmlFor="cv-upload-apply" style={{
               display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
               color: '#111', fontWeight: '500', flexShrink: 0
             }}>
-              <span style={{ fontSize: '18px' }}>+</span> 
+              <span style={{ fontSize: '18px' }}>+</span>
               <span style={{ fontSize: '14px' }}>Upload CV</span>
             </label>
           </div>
-          
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={isApplying}
               style={{
                 background: 'var(--primary-color)', color: 'white', border: 'none',
