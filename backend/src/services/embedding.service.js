@@ -18,7 +18,7 @@ const crypto = require('crypto');
 const { supabaseAdmin } = require('../config/supabase');
 
 // ─── Configuration ───────────────────────────────────────────────
-const HF_API_URL = 'https://api-inference.huggingface.co/models/BAAI/bge-small-en-v1.5';
+const HF_API_URL = 'https://router.huggingface.co/hf-inference/models/BAAI/bge-small-en-v1.5';
 const HF_TOKEN = process.env.HF_API_TOKEN;
 const EMBEDDING_DIMENSIONS = 384;
 const MAX_RETRIES = 3;
