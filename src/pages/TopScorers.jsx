@@ -39,37 +39,35 @@ const TopScorers = () => {
       }
       setJobs(jobsArray.map(j => ({ ...j, experience: j.experience_level })));
 
-      const jobIds = jobsArray.map(j => j.job_id);
-      
-      // Load actual submitted applications for THESE jobs
-      const { data: appsData, error } = await supabase
-        .from('applications')
-        .select(`
-          id,
-          status,
-          job_id,
-          candidates ( user_id, profile_score )
-        `)
-        .in('job_id', jobIds);
+      // Get active session token
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
 
-      // Now fetch user details for each application manually avoiding nested object crashes
-      if (!error && appsData && appsData.length > 0) {
-        const userIds = appsData.map(a => a.candidates?.user_id).filter(Boolean);
-        let userMap = {};
-        if (userIds.length > 0) {
-           const { data: usersData } = await supabase.from('users').select('id, name, email').in('id', userIds);
-           if (usersData) {
-             userMap = usersData.reduce((acc, curr) => ({ ...acc, [curr.id]: curr }), {});
-           }
-        }
+      try {
+        const applicantsPromises = jobsArray.map(async (job) => {
+          const response = await fetch(`http://localhost:5000/api/applications/job/${job.job_id}/candidates`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (!response.ok) {
+            console.error(`Failed to fetch candidates for job ${job.job_id}:`, response.statusText);
+            return [];
+          }
+          const resData = await response.json();
+          return resData.applicants || [];
+        });
 
-        const processedApps = appsData.map(app => {
+        const allApplicantsArrays = await Promise.all(applicantsPromises);
+        const allApplicants = allApplicantsArrays.flat();
+
+        const processedApps = allApplicants.map(app => {
            const currentJob = jobsArray.find(j => j.job_id === app.job_id);
-           const uData = userMap[app.candidates?.user_id] || {};
            const cScore = app.candidates?.profile_score || 0;
            return {
-             name: uData.name || 'Unknown Applicant',
-             email: uData.email || 'N/A',
+             name: app.candidates?.users?.name || 'Unknown Applicant',
+             email: app.candidates?.users?.email || 'N/A',
              experience: currentJob?.experience_level || 'N/A',
              jobPosition: currentJob?.title || 'Unknown Job',
              score: cScore,
@@ -80,6 +78,8 @@ const TopScorers = () => {
         // Filter those who pass the threshold
         const qualifiers = processedApps.filter(c => c.score >= c.threshold);
         setTopCandidates(qualifiers);
+      } catch (err) {
+        console.error("Error fetching top candidates via API:", err);
       }
     };
 

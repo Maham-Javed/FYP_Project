@@ -249,4 +249,4 @@ Find the best matching candidates for a specific job. Useful for the recruiter d
 
 
 ---
-*Note: This documentation was dynamically synchronized with class structures on 5/22/2026, 3:12:15 AM.*
+*Note: This documentation was dynamically synchronized with class structures on 6/2/2026, 11:14:13 PM.*

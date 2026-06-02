@@ -380,6 +380,7 @@ class ApplicationController {
           candidates (
             candidate_id,
             user_id,
+            profile_score,
             users (name, email)
           )
         `)
