@@ -80,7 +80,7 @@ const RoleSignup = () => {
   }, [popupMessage, navigate]);
 
   return (
-    <div className="auth-container">
+    <div className="auth-container animated-gradient-bg" style={{ height: '100vh', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', position: 'relative' }}>
       {/* Toast Notification */}
       {popupMessage && (
         <div style={{
@@ -113,38 +113,54 @@ const RoleSignup = () => {
         </div>
       )}
 
-      <div className="auth-card" style={{ position: 'relative' }}>
-        <div className="auth-header">
-          <h2>{isSignIn ? "Sign In" : "Sign Up"}</h2>
-          <p>Sign up/Sign in as a candidate</p>
+      <div className="auth-card" style={{ 
+        position: 'relative',
+        background: 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255, 255, 255, 0.6)',
+        borderRadius: '24px',
+        padding: '35px 40px',
+        width: '100%',
+        maxWidth: '460px',
+        boxShadow: '0 20px 40px rgba(31, 38, 135, 0.05)',
+        animation: 'slideInRight 0.5s ease-out forwards'
+      }}>
+        <div className="auth-header" style={{ marginBottom: '24px', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '6px' }}>
+            {isSignIn ? "Welcome Back" : "Sign Up"}
+          </h2>
+          <p style={{ fontSize: '13.5px', color: 'var(--text-light)', margin: 0 }}>
+            {isSignIn ? "Sign in to access your candidate dashboard" : "Register as a Candidate to find your dream job"}
+          </p>
         </div>
         
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           {!isSignIn && (
-            <div style={{ display: 'flex', gap: '15px' }}>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label>First Name</label>
-                <input name="firstName" onChange={handleChange} required type="text" className="form-input" placeholder="eg: Sara" />
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                <label style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '6px' }}>First Name</label>
+                <input name="firstName" onChange={handleChange} required type="text" className="form-input" placeholder="eg: Sara" style={{ padding: '10px 14px', fontSize: '13.5px', borderRadius: '8px' }} />
               </div>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label>Last Name</label>
-                <input name="lastName" onChange={handleChange} required type="text" className="form-input" placeholder="eg: Akram" />
+              <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                <label style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '6px' }}>Last Name</label>
+                <input name="lastName" onChange={handleChange} required type="text" className="form-input" placeholder="eg: Akram" style={{ padding: '10px 14px', fontSize: '13.5px', borderRadius: '8px' }} />
               </div>
             </div>
           )}
           
-          <div className="form-group">
-            <label>Email</label>
-            <input name="email" onChange={handleChange} required type="email" className="form-input" placeholder="eg: saraakram@gmail.com" />
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '6px' }}>Email</label>
+            <input name="email" onChange={handleChange} required type="email" className="form-input" placeholder="eg: saraakram@gmail.com" style={{ padding: '10px 14px', fontSize: '13.5px', borderRadius: '8px' }} />
           </div>
           
-          <div className="form-group">
-            <label>Password</label>
-            <input name="password" onChange={handleChange} required type="password" className="form-input" placeholder="********" />
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '6px' }}>Password</label>
+            <input name="password" onChange={handleChange} type="password" required className="form-input" placeholder="********" style={{ padding: '10px 14px', fontSize: '13.5px', borderRadius: '8px' }} />
           </div>
 
           {!isSignIn && (
-            <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="form-group" style={{ marginBottom: 0, marginTop: '5px' }}>
               <input 
                 type="file" 
                 id="cv-upload" 
@@ -154,41 +170,64 @@ const RoleSignup = () => {
               />
               <label htmlFor="cv-upload" style={{ 
                 display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer',
-                color: 'var(--text-dark)'
-              }}>
-                <span style={{ fontSize: '20px', fontWeight: 'bold' }}>+</span> 
-                <span style={{ fontSize: '14px', fontWeight: '500' }}>
-                  {cvFile ? cvFile.name : 'Upload Cv'}
+                color: 'var(--text-dark)',
+                padding: '12px 14px',
+                border: '1px dashed #CBD5E1',
+                borderRadius: '8px',
+                background: '#F8FAFC',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.background = '#EEF2FF'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.background = '#F8FAFC'; }}
+              >
+                <div style={{ 
+                  width: '28px', height: '28px', borderRadius: '6px', background: '#E0E7FF',
+                  display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#4F46E5', fontWeight: 'bold', flexShrink: 0
+                }}>+</div> 
+                <span style={{ fontSize: '13.5px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {cvFile ? cvFile.name : 'Upload your CV (PDF, DOCX)'}
                 </span>
               </label>
             </div>
           )}
-          
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px' }}>
-            <button type="submit" className="btn-primary auth-btn">{isSignIn ? "Sign In" : "Sign Up"}</button>
+
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
+            <button 
+              type="submit" 
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #4F46E5 0%, #8B5CF6 100%)',
+                color: '#FFFFFF',
+                border: 'none',
+                padding: '12px',
+                borderRadius: '10px',
+                fontWeight: '600',
+                fontSize: '15px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 15px rgba(79, 70, 229, 0.15)'
+              }}
+              onMouseEnter={(e) => { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 6px 20px rgba(79, 70, 229, 0.25)'; }}
+              onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 15px rgba(79, 70, 229, 0.15)'; }}
+            >
+              {isSignIn ? "Sign In" : "Create Account"}
+            </button>
           </div>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '15px' }}>
-          <span style={{ fontSize: '14px', color: '#666' }}>
+        <div style={{ textAlign: 'center', marginTop: '20px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '15px' }}>
+          <span style={{ fontSize: '13.5px', color: '#6B7280' }}>
             {isSignIn ? "Don't have an account? " : "Already have an account? "}
           </span>
           <button 
             type="button" 
             onClick={() => setIsSignIn(!isSignIn)} 
             style={{ 
-              background: 'none', border: 'none', color: '#6D28D9', 
-              fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', padding: 0
+              background: 'none', border: 'none', color: '#4F46E5', 
+              fontWeight: '700', cursor: 'pointer', fontSize: '13.5px', padding: 0
             }}
           >
-            {isSignIn ? "Sign Up" : "Sign In"}
-          </button>
-        </div>
-
-        <div className="auth-footer">
-          <div className="divider">OR</div>
-          <button className="google-btn">
-            <FcGoogle className="google-icon" /> Google
+            {isSignIn ? "Register Here" : "Sign In Here"}
           </button>
         </div>
       </div>

@@ -15,6 +15,7 @@ const CandidateDetails = () => {
 
   const cand = state?.cand;
 
+  const [decisionStatus, setDecisionStatus] = useState(null);
   const [cvMatch, setCvMatch] = useState(cand?.cvMatch || 0);
   const [dbInterviewScore, setDbInterviewScore] = useState(cand?.score || 0);
   const [dbThreshold, setDbThreshold] = useState(cand?.threshold || 60);
@@ -26,6 +27,7 @@ const CandidateDetails = () => {
         const { data, error } = await supabase
           .from('applications')
           .select(`
+            status,
             match_score,
             jobs (
               passing_threshold
@@ -43,6 +45,13 @@ const CandidateDetails = () => {
         }
 
         if (data) {
+          if (data.status) {
+            const statLower = data.status.toLowerCase();
+            if (statLower === 'accepted' || statLower === 'rejected') {
+              setDecisionStatus(statLower === 'accepted' ? 'Accepted' : 'Rejected');
+            }
+          }
+
           if (data.match_score !== null && data.match_score !== undefined) {
             setCvMatch(data.match_score);
           }
@@ -105,11 +114,27 @@ const CandidateDetails = () => {
   const cvMatching = cvMatch ? Number(cvMatch).toFixed(1) : '0.0';
   const interviewScore = dbInterviewScore ? Number(dbInterviewScore).toFixed(1) : '0.0';
 
-  const handleAction = (action) => {
-    const msg = action === 'accept'
-      ? `Accepting Email sent to ${cand.name}`
-      : `Rejecting Email sent to ${cand.name}`;
-    setPopupMessage(msg);
+  const handleAction = async (action) => {
+    const newStatus = action === 'accept' ? 'Accepted' : 'Rejected';
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .update({ status: newStatus })
+        .eq('application_id', cand.applicationId);
+        
+      if (error) {
+        console.error("Error updating application status:", error);
+        return;
+      }
+      
+      setDecisionStatus(newStatus);
+      const msg = action === 'accept'
+        ? `${cand.name} is accepted`
+        : `${cand.name} is rejected`;
+      setPopupMessage(msg);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -280,30 +305,42 @@ const CandidateDetails = () => {
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
-          <button 
-            onClick={() => handleAction('accept')} 
-            style={{ 
-              padding: '12px 30px', borderRadius: '12px', width: '140px', background: '#10B981', 
-              color: '#FFFFFF', border: 'none', fontWeight: '700', fontSize: '14.5px', cursor: 'pointer',
-              boxShadow: '0 4px 10px rgba(16, 185, 129, 0.2)', transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#059669'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = '#10B981'; e.currentTarget.style.transform = 'translateY(0)' }}
-          >
-            Accept
-          </button>
-          <button 
-            onClick={() => handleAction('reject')} 
-            style={{ 
-              padding: '12px 30px', borderRadius: '12px', width: '140px', background: '#EF4444', 
-              color: '#FFFFFF', border: 'none', fontWeight: '700', fontSize: '14.5px', cursor: 'pointer',
-              boxShadow: '0 4px 10px rgba(239, 68, 68, 0.2)', transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.transform = 'translateY(0)' }}
-          >
-            Reject
-          </button>
+          {decisionStatus ? (
+            <div style={{ 
+              padding: '12px 30px', borderRadius: '12px', background: '#F1F5F9', 
+              color: decisionStatus === 'Accepted' ? '#10B981' : '#EF4444', 
+              fontWeight: '700', fontSize: '14.5px', border: `1px solid ${decisionStatus === 'Accepted' ? '#10B981' : '#EF4444'}`
+            }}>
+              {cand.name} is {decisionStatus.toLowerCase()}
+            </div>
+          ) : (
+            <>
+              <button 
+                onClick={() => handleAction('accept')} 
+                style={{ 
+                  padding: '12px 30px', borderRadius: '12px', width: '140px', background: '#10B981', 
+                  color: '#FFFFFF', border: 'none', fontWeight: '700', fontSize: '14.5px', cursor: 'pointer',
+                  boxShadow: '0 4px 10px rgba(16, 185, 129, 0.2)', transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#059669'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#10B981'; e.currentTarget.style.transform = 'translateY(0)' }}
+              >
+                Accept
+              </button>
+              <button 
+                onClick={() => handleAction('reject')} 
+                style={{ 
+                  padding: '12px 30px', borderRadius: '12px', width: '140px', background: '#EF4444', 
+                  color: '#FFFFFF', border: 'none', fontWeight: '700', fontSize: '14.5px', cursor: 'pointer',
+                  boxShadow: '0 4px 10px rgba(239, 68, 68, 0.2)', transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.transform = 'translateY(0)' }}
+              >
+                Reject
+              </button>
+            </>
+          )}
         </div>
 
       </div>

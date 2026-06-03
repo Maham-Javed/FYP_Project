@@ -309,7 +309,7 @@ const Candidates = () => {
                     let badgeColor = '#475569';
                     let badgeBorder = '#E2E8F0';
 
-                    if (['accepted', 'hired', 'passed', 'pass'].includes(statusLower)) {
+                    if (['accepted', 'hired', 'passed the interview', 'passed', 'pass'].includes(statusLower)) {
                       badgeBg = '#ECFDF5';
                       badgeColor = '#047857';
                       badgeBorder = '#A7F3D0';
@@ -317,7 +317,7 @@ const Candidates = () => {
                       badgeBg = '#FEF2F2';
                       badgeColor = '#B91C1C';
                       badgeBorder = '#FCA5A5';
-                    } else if (['interviewing', 'shortlisted', 'scheduled'].includes(statusLower)) {
+                    } else if (['interviewing', 'shortlisted', 'shortlisted for interview', 'scheduled'].includes(statusLower)) {
                       badgeBg = '#EEF2FF';
                       badgeColor = '#4338CA';
                       badgeBorder = '#C7D2FE';

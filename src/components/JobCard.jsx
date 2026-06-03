@@ -2,7 +2,7 @@ import React from 'react';
 import { FiArrowRight, FiUsers, FiClipboard, FiAward, FiBriefcase } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
-const JobCard = ({ id, title, applied, shortlisted, topScorer }) => {
+const JobCard = ({ id, title, applied, accepted, topScorer }) => {
   const navigate = useNavigate();
   return (
     <div 
@@ -57,7 +57,7 @@ const JobCard = ({ id, title, applied, shortlisted, topScorer }) => {
           <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>{applied}</span>
         </div>
 
-        {/* Shortlisted for Interview */}
+        {/* Accepted Candidates */}
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -69,9 +69,9 @@ const JobCard = ({ id, title, applied, shortlisted, topScorer }) => {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <FiClipboard size={16} color="#10B981" />
-            <span style={{ fontSize: '13.5px', fontWeight: '500', color: '#475569' }}>Shortlisted</span>
+            <span style={{ fontSize: '13.5px', fontWeight: '500', color: '#475569' }}>Accepted</span>
           </div>
-          <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>{shortlisted}</span>
+          <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>{accepted}</span>
         </div>
 
         {/* Top Scorer */}

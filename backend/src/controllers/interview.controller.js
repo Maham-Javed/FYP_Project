@@ -257,10 +257,10 @@ class InterviewController {
 
         // Determine result based on passing threshold
         const passingThreshold = interview.applications.jobs?.passing_threshold || 60;
-        const resultStatus = finalScorePercentage >= passingThreshold ? 'pass' : 'fail';
+        const resultStatus = finalScorePercentage > passingThreshold ? 'pass' : 'fail';
 
         // Update interview status and application status atomically inside a transaction
-        const finalAppStatus = resultStatus === 'pass' ? 'accepted' : 'rejected';
+        const finalAppStatus = resultStatus === 'pass' ? 'Passed the interview' : 'rejected';
         await InterviewRepository.finalizeInterviewAtomic(
           interviewId,
           interview.application_id,

@@ -3,7 +3,7 @@ import logoUrl from '../assets/logo.svg';
 import { useNavigate } from 'react-router-dom';
 import { 
   FiHome, FiUsers, FiClipboard, FiLogOut, FiArrowLeft, 
-  FiBriefcase, FiMapPin, FiCalendar, FiAward 
+  FiBriefcase, FiMapPin, FiCalendar, FiAward, FiTrash2
 } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 
@@ -57,9 +57,10 @@ const CandidateAppliedJobs = () => {
              // Map status to what the UI expects (since DB uses pending/interviewing)
              const mapStatus = (dbStatus) => {
                if (dbStatus === 'pending') return 'Applied';
-               if (dbStatus === 'selected_for_interview' || dbStatus === 'interviewing') return 'Shortlisted';
-               if (dbStatus === 'accepted') return 'Accepted';
-               if (dbStatus === 'rejected') return 'Rejected';
+               if (dbStatus === 'selected_for_interview' || dbStatus === 'shortlisted for interview' || dbStatus === 'interviewing') return 'Shortlisted';
+               if (dbStatus === 'Passed the interview') return 'Passed the interview';
+               if (dbStatus === 'Accepted' || dbStatus === 'accepted') return 'Accepted';
+               if (dbStatus === 'Rejected' || dbStatus === 'rejected') return 'Rejected';
                return dbStatus || 'Applied';
              };
 
@@ -100,6 +101,24 @@ const CandidateAppliedJobs = () => {
     navigate('/');
   };
 
+  const handleDeleteApplication = async (applicationId) => {
+    const confirmed = window.confirm("Are you sure you want to withdraw this application?");
+    if (!confirmed) return;
+
+    // Optimistically update the UI
+    setApplications(prev => prev.filter(app => app.id !== applicationId));
+
+    const { error } = await supabase
+      .from('applications')
+      .delete()
+      .eq('application_id', applicationId);
+
+    if (error) {
+      console.error("Error deleting application:", error.message);
+      alert("Failed to delete application. Please try again.");
+    }
+  };
+
   const initial = candidate.firstName.charAt(0).toUpperCase();
 
   // Helper function to color code statuses
@@ -109,6 +128,7 @@ const CandidateAppliedJobs = () => {
     if (s === 'accepted') return { bg: '#D1FAE5', col: '#065F46' }; // Green
     if (s === 'rejected') return { bg: '#FEE2E2', col: '#DC2626' }; // Red (Trendy Red)
     if (s === 'shortlisted') return { bg: '#ECFDF5', col: '#059669' }; // Emerald Green
+    if (s === 'passed the interview') return { bg: '#D1FAE5', col: '#065F46' }; // Emerald Green
     return { bg: '#F1F5F9', col: '#475569' }; // Grey fallback
   };
 
@@ -201,25 +221,44 @@ const CandidateAppliedJobs = () => {
         </nav>
 
         {/* User Profile */}
-        <div style={{ 
-          padding: '20px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '15px'
-        }}>
-          <div style={{ 
-            width: '40px', height: '40px', borderRadius: '50%', background: '#D1FAE5',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', color: '#10B981',
-            flexShrink: 0
-          }}>
-            {initial}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {candidate.firstName} {candidate.lastName}
+        <div style={{ padding: '0 24px', marginTop: 'auto', marginBottom: '20px' }}>
+          <div 
+            onClick={handleLogout}
+            style={{ 
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+              padding: '12px', background: '#F8FAFC', borderRadius: '16px', 
+              cursor: 'pointer', transition: 'all 0.2s', border: '1px solid #E2E8F0',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+            title="Click to Logout"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+              <div style={{ 
+                width: '38px', height: '38px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: 'white', 
+                borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center',
+                fontWeight: '700', fontSize: '14px', flexShrink: 0, boxShadow: '0 2px 5px rgba(16, 185, 129, 0.3)'
+              }}>
+                {initial}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: '700', fontSize: '13.5px', color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {candidate.firstName} {candidate.lastName}
+                </div>
+                <div style={{ fontSize: '11.5px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {candidate.email}
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: '12px', color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {candidate.email}
+            <div style={{ 
+              color: '#EF4444', display: 'flex', justifyContent: 'center', alignItems: 'center', 
+              width: '32px', height: '32px', borderRadius: '8px', background: '#FEE2E2',
+              flexShrink: 0, transition: 'all 0.2s'
+            }}>
+              <FiLogOut size={16} style={{ transform: 'translateX(1px)' }} />
             </div>
           </div>
-          <FiLogOut size={20} color="#4F46E5" cursor="pointer" onClick={handleLogout} style={{ flexShrink: 0 }} />
         </div>
       </div>
 
@@ -260,12 +299,34 @@ const CandidateAppliedJobs = () => {
                       }}>
                         <FiBriefcase size={18} />
                       </div>
-                      <div style={{ minWidth: 0 }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
                         <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {app.title}
                         </h3>
                         <p style={{ fontSize: '12px', color: '#64748B', margin: '2px 0 0 0' }}>{app.company}</p>
                       </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteApplication(app.id); }}
+                        title="Withdraw Application"
+                        style={{
+                          background: '#FEE2E2',
+                          border: 'none',
+                          borderRadius: '8px',
+                          width: '32px',
+                          height: '32px',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                          color: '#DC2626',
+                          transition: 'all 0.2s',
+                          flexShrink: 0
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#FECACA'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = '#FEE2E2'; }}
+                      >
+                        <FiTrash2 size={16} />
+                      </button>
                     </div>
 
                     {/* Status Badge */}

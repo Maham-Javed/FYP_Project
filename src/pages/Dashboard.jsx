@@ -32,11 +32,12 @@ const Dashboard = () => {
                   .select('*', { count: 'exact', head: true })
                   .eq('job_id', job.job_id);
                 
-                // total shortlisted
-                const { count: shortlisted } = await supabase.from('applications')
-                  .select('*', { count: 'exact', head: true })
+                // total accepted
+                const { data: acceptedData } = await supabase.from('applications')
+                  .select('application_id')
                   .eq('job_id', job.job_id)
-                  .in('status', ['interviewing', 'accepted']);
+                  .ilike('status', 'accepted');
+                const accepted = acceptedData ? acceptedData.length : 0;
                 
                 // top scorer
                 const { data: topInterviews } = await supabase.from('interviews')
@@ -47,7 +48,7 @@ const Dashboard = () => {
                 
                 const topScorer = topInterviews?.length > 0 ? topInterviews[0].total_score : 0;
 
-                return { ...job, applied: applied || 0, shortlisted: shortlisted || 0, topScorer };
+                return { ...job, applied: applied || 0, accepted: accepted || 0, topScorer };
               }));
               
               setJobs(enrichedJobs);
@@ -203,7 +204,7 @@ const Dashboard = () => {
                   id={job.job_id}
                   title={job.title}
                   applied={job.applied}
-                  shortlisted={job.shortlisted}
+                  accepted={job.accepted}
                   topScorer={job.topScorer}
                 />
               ))}

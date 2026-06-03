@@ -94,25 +94,52 @@ const Sidebar = () => {
         </NavLink>
       </div>
 
-      <div style={{ padding: '0 30px', marginTop: 'auto' }}>
-        <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', marginBottom: '20px' }}/>
-        
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ padding: '0 24px', marginTop: 'auto', marginBottom: '20px' }}>
+        <div 
+          onClick={handleLogout}
+          style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            padding: '12px', 
+            background: '#F8FAFC', 
+            borderRadius: '16px', 
+            cursor: 'pointer', 
+            transition: 'all 0.2s',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+          title="Click to Logout"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
             <div style={{ 
-              width: '40px', height: '40px', background: '#8B4513', color: 'white', 
-              borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center',
-              fontWeight: '600'
+              width: '38px', height: '38px', background: 'linear-gradient(135deg, #4F46E5 0%, #8B5CF6 100%)', color: 'white', 
+              borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center',
+              fontWeight: '700', fontSize: '14px', flexShrink: 0,
+              boxShadow: '0 2px 5px rgba(79, 70, 229, 0.3)'
             }}>
               {initials || 'JD'}
             </div>
-            <div>
-              <div style={{ fontWeight: '600', fontSize: '14px', color: '#111' }}>{fullName}</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-light)' }}>{recruiter.email}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: '700', fontSize: '13.5px', color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fullName}</div>
+              <div style={{ fontSize: '11.5px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{recruiter.email}</div>
             </div>
           </div>
-          <div onClick={handleLogout} style={{ cursor: 'pointer', color: 'var(--primary-color)' }}>
-            <FiLogOut size={20} />
+          <div style={{ 
+            color: '#EF4444', 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            width: '32px', 
+            height: '32px', 
+            borderRadius: '8px', 
+            background: '#FEE2E2',
+            flexShrink: 0,
+            transition: 'all 0.2s'
+          }}>
+            <FiLogOut size={16} style={{ transform: 'translateX(1px)' }} />
           </div>
         </div>
       </div>
