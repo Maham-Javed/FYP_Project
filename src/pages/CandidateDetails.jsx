@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
+import { supabase } from '../supabaseClient';
 
 // CandidateDetails Component
 // This component displays the detailed profile of a candidate to a recruiter.
@@ -14,10 +15,59 @@ const CandidateDetails = () => {
 
   const cand = state?.cand;
 
-  // Calculate the matched job description directly during render
-  const jobs = JSON.parse(localStorage.getItem('xenon_jobs') || '[]');
-  const matchedJob = jobs.find(j => j.title === cand?.jobPosition);
-  const jobDesc = matchedJob ? matchedJob.description : '';
+  const [cvMatch, setCvMatch] = useState(cand?.cvMatch || 0);
+  const [dbInterviewScore, setDbInterviewScore] = useState(cand?.score || 0);
+  const [dbThreshold, setDbThreshold] = useState(cand?.threshold || 60);
+
+  useEffect(() => {
+    const fetchLatestScores = async () => {
+      if (!cand?.applicationId) return;
+      try {
+        const { data, error } = await supabase
+          .from('applications')
+          .select(`
+            match_score,
+            jobs (
+              passing_threshold
+            ),
+            interviews (
+              total_score
+            )
+          `)
+          .eq('application_id', cand.applicationId)
+          .single();
+
+        if (error) {
+          console.error("Error fetching latest scores:", error);
+          return;
+        }
+
+        if (data) {
+          if (data.match_score !== null && data.match_score !== undefined) {
+            setCvMatch(data.match_score);
+          }
+          
+          let intScore = 0;
+          if (data.interviews) {
+            if (Array.isArray(data.interviews)) {
+              intScore = data.interviews[0]?.total_score || 0;
+            } else {
+              intScore = data.interviews.total_score || 0;
+            }
+          }
+          setDbInterviewScore(intScore);
+
+          if (data.jobs?.passing_threshold !== null && data.jobs?.passing_threshold !== undefined) {
+            setDbThreshold(data.jobs.passing_threshold);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch latest scores:", err);
+      }
+    };
+
+    fetchLatestScores();
+  }, [cand]);
 
   // Redirect if no candidate data is provided in navigation state
   useEffect(() => {
@@ -25,6 +75,7 @@ const CandidateDetails = () => {
       navigate('/top-scorers');
     }
   }, [cand, navigate]);
+
   const closePopup = () => {
     setPopupMessage('');
     navigate('/top-scorers');
@@ -40,8 +91,7 @@ const CandidateDetails = () => {
     }
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [popupMessage]); // Added 'closePopup' to dependencies? Actually, closePopup is re-created every render, so we shouldn't add it unless we useCallback, or just ignore for now or use navigate directly.
-  // The linter warning was in another file regarding closePopup. In CandidateDetails, no warning was raised for closePopup.
+  }, [popupMessage]);
 
   if (!cand) return null;
 
@@ -51,37 +101,49 @@ const CandidateDetails = () => {
     initial = cand.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   }
 
-  // Generate sub-scores based on overall score for UI
-  const cvMatching = (cand.score - 5).toFixed(1);
-  const interviewScore = (cand.score - 2).toFixed(1);
+  // Draw actual scores passed from TopScorers query
+  const cvMatching = cvMatch ? Number(cvMatch).toFixed(1) : '0.0';
+  const interviewScore = dbInterviewScore ? Number(dbInterviewScore).toFixed(1) : '0.0';
 
   const handleAction = (action) => {
     const msg = action === 'accept'
-      ? `Accepting Email send to the ${cand.name}`
-      : `Rejecting Email send to the ${cand.name}`;
+      ? `Accepting Email sent to ${cand.name}`
+      : `Rejecting Email sent to ${cand.name}`;
     setPopupMessage(msg);
   };
 
   return (
-    <div className="auth-container">
+    <div 
+      className="animated-gradient-bg" 
+      style={{ 
+        height: '100vh', 
+        width: '100vw', 
+        overflow: 'hidden', 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        padding: '20px', 
+        fontFamily: "'Inter', sans-serif" 
+      }}
+    >
       {/* Toast Notification */}
       {popupMessage && (
         <div style={{
           position: 'fixed', top: '30px', left: '50%', transform: 'translateX(-50%)',
           background: '#FFFFFF', padding: '16px 24px', borderRadius: '12px',
           boxShadow: '0 8px 30px rgba(0,0,0,0.12)', zIndex: 9999, display: 'flex',
-          alignItems: 'center', gap: '15px', borderLeft: '5px solid var(--primary-color)',
+          alignItems: 'center', gap: '15px', borderLeft: '5px solid #4F46E5',
           animation: 'slideDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
           minWidth: '320px'
         }}>
           <div style={{
-            background: 'var(--sidebar-active-bg)', color: 'var(--primary-color)', borderRadius: '50%', width: '28px', height: '28px',
+            background: '#EEF2FF', color: '#4F46E5', borderRadius: '50%', width: '28px', height: '28px',
             display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', flexShrink: 0
           }}>
             ✓
           </div>
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, color: '#111', fontSize: '15px', fontWeight: 'bold' }}>Success</h4>
+            <h4 style={{ margin: 0, color: '#0F172A', fontSize: '15px', fontWeight: 'bold' }}>Success</h4>
             <p style={{ margin: '2px 0 0', color: '#4B5563', fontSize: '14px' }}>{popupMessage}</p>
           </div>
           <button
@@ -96,57 +158,150 @@ const CandidateDetails = () => {
         </div>
       )}
 
-      <div className="auth-card" style={{ maxWidth: '500px', animation: 'slideInRight 0.5s ease-out forwards', position: 'relative' }}>
-
+      <div 
+        className="glass-card" 
+        style={{ 
+          background: 'rgba(255, 255, 255, 0.9)', 
+          backdropFilter: 'blur(20px)', 
+          border: '1px solid rgba(255, 255, 255, 0.4)', 
+          borderRadius: '24px', 
+          padding: '40px', 
+          width: '100%', 
+          maxWidth: '550px', 
+          boxShadow: '0 20px 40px rgba(0,0,0,0.06)', 
+          animation: 'slideIn 0.5s ease-out', 
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
         {/* Back button */}
-        <button onClick={() => navigate(-1)} style={{ position: 'absolute', top: '15px', left: '15px', background: 'none', border: 'none', cursor: 'pointer' }}>
-          <FiArrowLeft size={24} />
+        <button 
+          onClick={() => navigate(-1)} 
+          style={{ 
+            position: 'absolute', top: '24px', left: '24px', background: '#F1F5F9', border: 'none', 
+            borderRadius: '50%', width: '40px', height: '40px', display: 'flex', justifyContent: 'center', 
+            alignItems: 'center', cursor: 'pointer', color: '#4F46E5', transition: 'all 0.2s ease-in-out'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = '#EEF2FF'; e.currentTarget.style.transform = 'scale(1.05)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.transform = 'scale(1)' }}
+        >
+          <FiArrowLeft size={20} />
         </button>
 
         {/* Profile Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px', marginTop: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '32px', marginTop: '10px' }}>
           <div style={{
-            width: '60px', height: '60px', borderRadius: '50%', background: '#E2D9FC',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#111', fontSize: '24px', fontWeight: '600'
+            width: '64px', height: '64px', borderRadius: '50%', 
+            background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', 
+            color: '#FFFFFF', fontSize: '22px', fontWeight: '700',
+            boxShadow: '0 4px 10px rgba(79, 70, 229, 0.2)',
+            flexShrink: 0
           }}>
             {initial}
           </div>
-          <div>
-            <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#111', marginBottom: '0' }}>{cand.name}</h2>
-            <p style={{ fontSize: '14px', color: '#111', fontWeight: '500', margin: '0' }}>{cand.email}</p>
+          <div style={{ textAlign: 'left' }}>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0F172A', margin: '0 0 4px 0' }}>{cand.name}</h2>
+            <p style={{ fontSize: '14.5px', color: '#64748B', fontWeight: '500', margin: '0 0 8px 0' }}>{cand.email}</p>
+            <span style={{ 
+              display: 'inline-block', 
+              fontSize: '12.5px', 
+              fontWeight: '700', 
+              color: '#4F46E5', 
+              background: '#EEF2FF', 
+              padding: '4px 10px', 
+              borderRadius: '8px',
+              border: '1px solid #C7D2FE'
+            }}>
+              Job Position: {cand.jobPosition}
+            </span>
           </div>
         </div>
 
-        {/* Job Description */}
-        <div style={{ marginBottom: '30px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '8px', color: '#111' }}>Job Description:</h3>
-          <p style={{ fontSize: '14px', color: '#111', lineHeight: '1.5' }}>
-            {jobDesc || "The candidate applied for a position without a specific description."}
-          </p>
-        </div>
+        {/* Evaluation Scores progress display */}
+        <div style={{ marginBottom: '32px' }}>
+          <h3 style={{ fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#64748B', marginBottom: '20px', textAlign: 'left' }}>
+            Performance Evaluation
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            
+            {/* CV Matching Score */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#475569' }}>CV Match Score</span>
+                <span style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{cvMatching}%</span>
+              </div>
+              <div style={{ width: '100%', height: '8px', background: '#F1F5F9', borderRadius: '9999px', overflow: 'hidden' }}>
+                <div style={{ width: `${cvMatching}%`, height: '100%', background: 'linear-gradient(90deg, #6366F1 0%, #4F46E5 100%)', borderRadius: '9999px' }}></div>
+              </div>
+            </div>
 
-        {/* Scores */}
-        <div style={{ marginBottom: '40px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '15px' }}>
-            <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', width: '200px' }}>CV Matching:</span>
-            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#111' }}>{cvMatching}%</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '15px' }}>
-            <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', width: '200px' }}>Interview Score:</span>
-            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#111' }}>{interviewScore}%</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#111', width: '200px' }}>Total Score:</span>
-            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#111' }}>{cand.score.toFixed(1)}%</span>
+            {/* Interview Score */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#475569' }}>AI Interview Performance</span>
+                <span style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{interviewScore}%</span>
+              </div>
+              <div style={{ width: '100%', height: '8px', background: '#F1F5F9', borderRadius: '9999px', overflow: 'hidden' }}>
+                <div style={{ width: `${interviewScore}%`, height: '100%', background: 'linear-gradient(90deg, #10B981 0%, #059669 100%)', borderRadius: '9999px' }}></div>
+              </div>
+            </div>
+
+            {/* Overall Score Banner */}
+            <div style={{ 
+              background: '#EEF2FF', 
+              padding: '16px 20px', 
+              borderRadius: '16px', 
+              border: '1px solid #C7D2FE', 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              textAlign: 'left'
+            }}>
+              <div>
+                <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#4F46E5', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Overall Grade</span>
+                <span style={{ fontSize: '13px', color: '#6366F1', fontWeight: '500' }}>Passing score: {dbThreshold}%</span>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '24px', fontWeight: '800', color: '#4F46E5', display: 'block' }}>{Number(dbInterviewScore).toFixed(1)}%</span>
+                <span style={{ 
+                  fontSize: '11px', 
+                  fontWeight: '700', 
+                  color: dbInterviewScore >= dbThreshold ? '#059669' : '#DC2626',
+                  textTransform: 'uppercase'
+                }}>
+                  {dbInterviewScore >= dbThreshold ? 'Qualified' : 'Not Qualified'}
+                </span>
+              </div>
+            </div>
+
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-          <button onClick={() => handleAction('accept')} className="btn-primary" style={{ padding: '12px 30px', width: '140px', textAlign: 'center' }}>
+        <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+          <button 
+            onClick={() => handleAction('accept')} 
+            style={{ 
+              padding: '12px 30px', borderRadius: '12px', width: '140px', background: '#10B981', 
+              color: '#FFFFFF', border: 'none', fontWeight: '700', fontSize: '14.5px', cursor: 'pointer',
+              boxShadow: '0 4px 10px rgba(16, 185, 129, 0.2)', transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#059669'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#10B981'; e.currentTarget.style.transform = 'translateY(0)' }}
+          >
             Accept
           </button>
-          <button onClick={() => handleAction('reject')} className="btn-primary" style={{ padding: '12px 30px', width: '140px', textAlign: 'center' }}>
+          <button 
+            onClick={() => handleAction('reject')} 
+            style={{ 
+              padding: '12px 30px', borderRadius: '12px', width: '140px', background: '#EF4444', 
+              color: '#FFFFFF', border: 'none', fontWeight: '700', fontSize: '14.5px', cursor: 'pointer',
+              boxShadow: '0 4px 10px rgba(239, 68, 68, 0.2)', transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.transform = 'translateY(0)' }}
+          >
             Reject
           </button>
         </div>
@@ -157,3 +312,5 @@ const CandidateDetails = () => {
 };
 
 export default CandidateDetails;
+
+

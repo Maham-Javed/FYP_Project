@@ -19,7 +19,7 @@ const Landing = () => {
   }, []);
 
   return (
-    <div className="animated-gradient-bg" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+    <div className="animated-gradient-bg" style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
       
       {/* Decorative Background Elements */}
       <div 
@@ -43,74 +43,74 @@ const Landing = () => {
       ></div>
 
       {/* Navbar */}
-      <nav className="landing-nav glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 50px', position: 'relative', zIndex: 10, margin: '20px', borderRadius: '16px' }}>
+      <nav className="landing-nav glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 40px', position: 'relative', zIndex: 10, margin: '15px 15px 5px 15px', borderRadius: '16px' }}>
         <div>
-          <img src={logoUrl} alt="Xenon AI" style={{ height: '32px' }} />
+          <img src={logoUrl} alt="Xenon AI" style={{ height: '28px' }} />
         </div>
-        <div style={{ display: 'flex', gap: '20px' }}>
-          <button onClick={() => navigate('/hire-talent')} style={{ background: 'none', border: 'none', fontSize: '15px', fontWeight: '600', color: 'var(--text-dark)', cursor: 'pointer', padding: '10px' }}>
+        <div style={{ display: 'flex', gap: '15px' }}>
+          <button onClick={() => navigate('/hire-talent')} style={{ background: 'none', border: 'none', fontSize: '14px', fontWeight: '600', color: 'var(--text-dark)', cursor: 'pointer', padding: '8px 12px', transition: 'all 0.2s' }} className="nav-btn">
             For Recruiters
           </button>
-          <button onClick={() => navigate('/find-role')} style={{ background: 'none', border: 'none', fontSize: '15px', fontWeight: '600', color: 'var(--text-dark)', cursor: 'pointer', padding: '10px' }}>
+          <button onClick={() => navigate('/find-role')} style={{ background: 'none', border: 'none', fontSize: '14px', fontWeight: '600', color: 'var(--text-dark)', cursor: 'pointer', padding: '8px 12px', transition: 'all 0.2s' }} className="nav-btn">
             For Candidates
           </button>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <div className="hero-content" style={{ display: 'flex', flexDirection: 'column', textAlign: 'center', justifyContent: 'center', flex: 1, position: 'relative', zIndex: 10 }}>
+      <div className="hero-content" style={{ display: 'flex', flexDirection: 'column', textAlign: 'center', justifyContent: 'center', flex: 1, position: 'relative', zIndex: 10, padding: '0 20px 20px 20px' }}>
         
-        <div className="glass-card animate-slide-up" style={{ padding: '60px 40px', borderRadius: '32px', maxWidth: '800px', margin: '0 auto', border: '1px solid rgba(255,255,255,0.6)' }}>
+        <div className="glass-card animate-slide-up" style={{ padding: '40px 35px', borderRadius: '28px', maxWidth: '780px', margin: '0 auto', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 20px 40px rgba(0,0,0,0.03)' }}>
           
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(79,70,229,0.1)', color: 'var(--primary-color)', padding: '8px 16px', borderRadius: '20px', fontSize: '14px', fontWeight: '600', marginBottom: '24px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(79,70,229,0.08)', color: 'var(--primary-color)', padding: '6px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '650', marginBottom: '18px' }}>
             <FiStar /> The Future of Hiring is Here
           </div>
 
-          <h1 style={{ fontSize: '56px', fontWeight: '800', color: 'var(--text-dark)', lineHeight: '1.1', marginBottom: '20px', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '46px', fontWeight: '800', color: 'var(--text-dark)', lineHeight: '1.2', marginBottom: '14px', letterSpacing: '-0.02em' }}>
             Match with Purpose.<br/>
             <span style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #EC4899 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               Powered by AI.
             </span>
           </h1>
           
-          <p style={{ fontSize: '18px', color: 'var(--text-light)', marginBottom: '40px', maxWidth: '500px', margin: '0 auto 40px auto', lineHeight: '1.6' }}>
+          <p style={{ fontSize: '16.5px', color: 'var(--text-light)', marginBottom: '30px', maxWidth: '480px', margin: '0 auto 30px auto', lineHeight: '1.6' }}>
             Whether you're building a world-class team or looking for your next big adventure, Xenon intelligently connects talent with opportunity.
           </p>
           
-          <div className="hero-buttons" style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div className="hero-buttons" style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button 
               onClick={() => navigate('/hire-talent')} 
               className="btn-primary pulse-glow" 
-              style={{ padding: '16px 32px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '10px', borderRadius: '12px' }}
+              style={{ padding: '12px 28px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '10px', fontWeight: '600' }}
             >
-              <FiUsers size={20} /> I'm Hiring Talent
+              <FiUsers size={18} /> I'm Hiring Talent
             </button>
             <button 
               onClick={() => navigate('/find-role')} 
               className="btn-primary" 
-              style={{ background: 'white', border: '2px solid var(--border-light)', color: 'var(--text-dark)', padding: '16px 32px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '10px', borderRadius: '12px' }}
+              style={{ background: 'white', border: '1.5px solid var(--border-light)', color: 'var(--text-dark)', padding: '12px 28px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '10px', fontWeight: '600', transition: 'all 0.2s' }}
               onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--primary-color)'; e.currentTarget.style.color = 'var(--primary-color)'; }}
               onMouseOut={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.color = 'var(--text-dark)'; }}
             >
-              <FiBriefcase size={20} /> I'm Looking for a Job
+              <FiBriefcase size={18} /> I'm Looking for a Job
             </button>
           </div>
 
         </div>
 
         {/* Small floating stats underneath */}
-        <div className="animate-slide-up stagger-3" style={{ display: 'flex', justifyContent: 'center', gap: '40px', marginTop: '60px', flexWrap: 'wrap' }}>
+        <div className="animate-slide-up stagger-3" style={{ display: 'flex', justifyContent: 'center', gap: '45px', marginTop: '30px', flexWrap: 'wrap' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '32px', fontWeight: '800', color: 'var(--primary-color)' }}>98%</div>
-            <div style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: '500' }}>Match Accuracy</div>
+            <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--primary-color)' }}>98%</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>Match Accuracy</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '32px', fontWeight: '800', color: 'var(--primary-color)' }}>10x</div>
-            <div style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: '500' }}>Faster Hiring</div>
+            <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--primary-color)' }}>10x</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>Faster Hiring</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '32px', fontWeight: '800', color: 'var(--primary-color)' }}>24/7</div>
-            <div style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: '500' }}>AI Screening</div>
+            <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--primary-color)' }}>24/7</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>AI Screening</div>
           </div>
         </div>
 

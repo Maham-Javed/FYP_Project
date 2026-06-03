@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import logoUrl from '../assets/logo.svg';
 import { useNavigate } from 'react-router-dom';
-import { FiHome, FiUsers, FiClipboard, FiLogOut, FiArrowLeft } from 'react-icons/fi';
+import { 
+  FiHome, FiUsers, FiClipboard, FiLogOut, FiArrowLeft, 
+  FiBriefcase, FiMapPin, FiCalendar, FiAward 
+} from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
 
 const CandidateAppliedJobs = () => {
@@ -36,8 +39,12 @@ const CandidateAppliedJobs = () => {
             .select(`
               application_id,
               status,
+              match_score,
               created_at,
-              jobs ( title )
+              jobs (
+                title,
+                similarity_threshold
+              )
             `)
             .eq('candidate_id', candData.candidate_id);
             
@@ -46,6 +53,7 @@ const CandidateAppliedJobs = () => {
           }
             
           if (!error && appsData) {
+             console.log("CandidateAppliedJobs appsData:", appsData);
              // Map status to what the UI expects (since DB uses pending/interviewing)
              const mapStatus = (dbStatus) => {
                if (dbStatus === 'pending') return 'Applied';
@@ -73,7 +81,9 @@ const CandidateAppliedJobs = () => {
                  title: app.jobs?.title || 'Unknown Job',
                  company: 'Xenon Corp', 
                  status: mapStatus(app.status),
-                 interviewDate: formattedDate
+                 interviewDate: formattedDate,
+                 matchScore: app.match_score,
+                 threshold: app.jobs?.similarity_threshold || 60
                };
              });
              setApplications(frontendApps);
@@ -96,108 +106,200 @@ const CandidateAppliedJobs = () => {
   const getStatusColor = (status) => {
     const s = status.toLowerCase();
     if (s === 'applied') return { bg: '#FEF08A', col: '#854D0E' }; // Yellow
-    if (s === 'accepted') return { bg: '#BBF7D0', col: '#166534' }; // Green
-    if (s === 'rejected') return { bg: '#FECACA', col: '#991B1B' }; // Red
-    if (s === 'shortlisted') return { bg: '#FED7AA', col: '#9A3412' }; // Orange
-    return { bg: '#E5E7EB', col: '#374151' }; // Grey fallback
+    if (s === 'accepted') return { bg: '#D1FAE5', col: '#065F46' }; // Green
+    if (s === 'rejected') return { bg: '#FEE2E2', col: '#DC2626' }; // Red (Trendy Red)
+    if (s === 'shortlisted') return { bg: '#ECFDF5', col: '#059669' }; // Emerald Green
+    return { bg: '#F1F5F9', col: '#475569' }; // Grey fallback
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#FFFFFF', fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: '#F8FAFC', fontFamily: "'Inter', sans-serif" }}>
       
+      {/* Dynamic styles to maintain rich interactive design elements */}
+      <style>{`
+        .sidebar-item {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          padding: 14px 28px;
+          color: #4B5563;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          border-left: 4px solid transparent;
+        }
+        .sidebar-item:hover {
+          color: #4F46E5;
+          background: rgba(79, 70, 229, 0.04);
+        }
+        .sidebar-item.active {
+          background: #EEF2FF;
+          color: #4F46E5;
+          font-weight: 600;
+          border-left: 4px solid #4F46E5;
+        }
+        .app-card {
+          border: 1px solid #E2E8F0;
+          border-radius: 20px;
+          padding: 24px;
+          background: #FFFFFF;
+          min-width: 290px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+          cursor: pointer;
+        }
+        .app-card:hover {
+          transform: translateY(-4px);
+          border-color: #4F46E5;
+          box-shadow: 0 12px 20px -3px rgba(79, 70, 229, 0.08), 0 4px 6px -2px rgba(79, 70, 229, 0.04);
+        }
+        .interview-row {
+          transition: background 0.2s ease;
+        }
+        .interview-row:hover {
+          background: #F8FAFC;
+        }
+        .view-details-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #4F46E5;
+          font-weight: 600;
+          font-size: 13.5px;
+          text-decoration: underline;
+          transition: color 0.2s;
+        }
+        .view-details-btn:hover {
+          color: #3730A3;
+        }
+      `}</style>
+
       {/* Sidebar */}
       <div style={{ 
         width: '280px', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column',
-        padding: '30px 0', flexShrink: 0
+        padding: '30px 0', background: '#FFFFFF', flexShrink: 0
       }}>
-                <div style={{ padding: '0 24px', marginBottom: '30px' }}>
+        <div style={{ padding: '0 24px', marginBottom: '40px', display: 'flex', alignItems: 'center' }}>
           <img src={logoUrl} alt="Xenon AI" style={{ height: '32px' }} />
         </div>
 
-        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ 
-            display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 30px', 
-            color: '#4B5563', cursor: 'pointer'
-          }} onClick={() => navigate('/candidate-dashboard')}>
-            <FiHome size={22} />
-            <span style={{ fontWeight: '500', fontSize: '16px' }}>Home</span>
+        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div className="sidebar-item" onClick={() => navigate('/candidate-dashboard')}>
+            <FiHome size={20} />
+            <span style={{ fontSize: '15px' }}>Home</span>
           </div>
-          <div style={{ 
-            display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 30px', 
-            background: 'var(--sidebar-active-bg)', color: '#111', cursor: 'pointer',
-            borderLeft: '4px solid var(--primary-color)'
-          }}>
-            <FiUsers size={22} color="var(--primary-color)" />
-            <span style={{ fontWeight: '600', fontSize: '16px' }}>Applied Jobs</span>
+          <div className="sidebar-item active">
+            <FiUsers size={20} />
+            <span style={{ fontSize: '15px' }}>Applied Jobs</span>
           </div>
-          <div style={{ 
-            display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 30px', 
-            color: '#4B5563', cursor: 'pointer'
-          }}>
-            <FiClipboard size={22} />
-            <span style={{ fontWeight: '500', fontSize: '16px' }}>Interview</span>
+          <div className="sidebar-item" onClick={() => navigate('/candidate-applied-jobs')}>
+            <FiClipboard size={20} />
+            <span style={{ fontSize: '15px' }}>Interview</span>
           </div>
         </nav>
 
+        {/* User Profile */}
         <div style={{ 
-          padding: '20px 30px', borderTop: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '15px'
+          padding: '20px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '15px'
         }}>
           <div style={{ 
             width: '40px', height: '40px', borderRadius: '50%', background: '#D1FAE5',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', color: '#10B981'
+            display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', color: '#10B981',
+            flexShrink: 0
           }}>
             {initial}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '15px', fontWeight: '600', color: '#111', lineHeight: '1.2' }}>{candidate.firstName} {candidate.lastName}</div>
-            <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate.email}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {candidate.firstName} {candidate.lastName}
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {candidate.email}
+            </div>
           </div>
-          <FiLogOut size={22} color="var(--primary-color)" cursor="pointer" onClick={handleLogout} />
+          <FiLogOut size={20} color="#4F46E5" cursor="pointer" onClick={handleLogout} style={{ flexShrink: 0 }} />
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, padding: '40px 60px', overflowY: 'auto' }}>
+      <div style={{ flex: 1, padding: '30px 40px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '40px', borderBottom: '1px solid #E5E7EB', paddingBottom: '20px' }}>
-          <button onClick={() => navigate('/candidate-dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-            <FiArrowLeft size={28} color="#111" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px', borderBottom: '1px solid #E5E7EB', paddingBottom: '20px' }}>
+          <button onClick={() => navigate('/candidate-dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '50%', hover: { background: '#F1F5F9' } }}>
+            <FiArrowLeft size={24} color="#0F172A" />
           </button>
-          <h1 style={{ fontSize: '26px', fontWeight: 'bold', color: '#111', margin: 0 }}>Applied Jobs</h1>
+          <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#0F172A', margin: 0 }}>Applied Jobs</h1>
         </div>
 
         {/* Your Application Section */}
         <div style={{ 
-          border: '2px solid var(--primary-color)', borderRadius: '24px', padding: '40px', 
-          background: '#FFFFFF', marginBottom: '40px'
+          background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '24px', padding: '32px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)', marginBottom: '32px'
         }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111', marginBottom: '30px' }}>
-            Your Application
+          <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', marginBottom: '24px' }}>
+            Your Applications
           </h2>
           
           <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '10px' }}>
             {applications.length === 0 ? (
-               <p style={{ color: '#6B7280' }}>You have not applied for any jobs yet.</p>
+               <p style={{ color: '#64748B', fontSize: '14px', margin: 0 }}>You have not applied for any jobs yet.</p>
             ) : (
               applications.map((app) => {
                 const colors = getStatusColor(app.status);
                 return (
-                  <div key={app.id} style={{
-                    border: '2px solid var(--sidebar-active-bg)', borderRadius: '16px', padding: '20px',
-                    minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '15px',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.02)'
-                  }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#111', margin: 0 }}>{app.title}</h3>
-                    <p style={{ fontSize: '13px', color: '#4B5563', margin: 0 }}>{app.company}</p>
-                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
+                  <div key={app.id} className="app-card">
+                    {/* Header: Title and icon */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ 
+                        width: '36px', height: '36px', borderRadius: '10px', background: '#F1F5F9', 
+                        display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#475569',
+                        flexShrink: 0
+                      }}>
+                        <FiBriefcase size={18} />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {app.title}
+                        </h3>
+                        <p style={{ fontSize: '12px', color: '#64748B', margin: '2px 0 0 0' }}>{app.company}</p>
+                      </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>Status</span>
                       <span style={{ 
-                        background: colors.bg, color: colors.col, padding: '6px 20px', 
-                        borderRadius: '20px', fontSize: '12px', fontWeight: '600'
+                        background: colors.bg, color: colors.col, padding: '4px 12px', 
+                        borderRadius: '20px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px'
                       }}>
                         {app.status}
                       </span>
                     </div>
+
+                    {/* Match Score & Threshold */}
+                    {app.matchScore !== null && app.matchScore !== undefined ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569' }}>
+                          <span>Match Score: <strong style={{ color: app.matchScore >= app.threshold ? '#059669' : '#DC2626' }}>{app.matchScore}%</strong></span>
+                          <span>Req: <strong>{app.threshold}%</strong></span>
+                        </div>
+                        <div style={{ width: '100%', height: '6px', background: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{
+                            width: `${Math.min(Math.max(app.matchScore, 0), 100)}%`,
+                            height: '100%',
+                            background: app.matchScore >= app.threshold ? '#10B981' : '#EF4444',
+                            borderRadius: '3px'
+                          }} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', fontSize: '12px', color: '#94A3B8' }}>
+                        <span>Auto-matching calculation in progress...</span>
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -207,43 +309,60 @@ const CandidateAppliedJobs = () => {
 
         {/* Upcoming Interviews Section */}
         <div style={{ 
-          border: '2px solid var(--primary-color)', borderRadius: '24px', padding: '40px', 
-          background: '#FFFFFF'
+          background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '24px', padding: '32px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)'
         }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111', marginBottom: '30px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', marginBottom: '24px' }}>
             Upcoming Interviews
           </h2>
           
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #E5E7EB', textAlign: 'left' }}>
-                <th style={{ padding: '15px 10px', fontSize: '16px', fontWeight: '600', color: '#111' }}>Stage 2</th>
-                <th style={{ padding: '15px 10px', fontSize: '16px', fontWeight: '600', color: '#111' }}>Job Title</th>
-                <th style={{ padding: '15px 10px', fontSize: '16px', fontWeight: '600', color: '#111' }}>Interview Date</th>
-                <th style={{ padding: '15px 10px' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {applications.filter(app => app.status === 'Shortlisted').length === 0 ? (
-                <tr>
-                  <td colSpan="4" style={{ padding: '15px 10px', textAlign: 'center', color: '#6B7280' }}>
-                    No upcoming interviews.
-                  </td>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
+                  <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Type</th>
+                  <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Job Title</th>
+                  <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Interview Date</th>
+                  <th style={{ padding: '12px 16px' }}></th>
                 </tr>
-              ) : (
-                applications.filter(app => app.status === 'Shortlisted').map((app, index) => (
-                  <tr key={`int-${index}`} style={{ borderBottom: '1px solid #E5E7EB' }}>
-                    <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>AI-Interview</td>
-                    <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>{app.title}</td>
-                    <td style={{ padding: '15px 10px', fontSize: '14px', color: '#111' }}>{app.interviewDate}</td>
-                    <td style={{ padding: '15px 10px', fontSize: '14px' }}>
-                      <button onClick={() => navigate('/candidate-interview-info', { state: { application: app } })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', textDecoration: 'underline' }}>View Details</button>
+              </thead>
+              <tbody>
+                {applications.filter(app => app.status === 'Shortlisted').length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ padding: '24px 16px', textAlign: 'center', color: '#64748B', fontSize: '14px' }}>
+                      No upcoming interviews scheduled yet.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  applications.filter(app => app.status === 'Shortlisted').map((app, index) => (
+                    <tr key={`int-${index}`} className="interview-row" style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '16px', fontSize: '14px', color: '#0F172A', fontWeight: '500' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <FiAward size={16} color="#4F46E5" />
+                          <span>AI-Interview (Stage 2)</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>{app.title}</td>
+                      <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <FiCalendar size={14} color="#64748B" />
+                          <span>{app.interviewDate}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>
+                        <button 
+                          onClick={() => navigate('/candidate-interview-info', { state: { application: app } })} 
+                          className="view-details-btn"
+                        >
+                          Start / Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
         </div>
 

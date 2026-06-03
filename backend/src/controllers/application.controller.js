@@ -373,6 +373,7 @@ class ApplicationController {
         .from('applications')
         .select(`
           application_id,
+          job_id,
           status,
           match_score,
           matched_at,
@@ -382,6 +383,11 @@ class ApplicationController {
             user_id,
             profile_score,
             users (name, email)
+          ),
+          interviews (
+            total_score,
+            result,
+            status
           )
         `)
         .eq('job_id', jobId)

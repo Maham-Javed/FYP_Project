@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"npm run frontend\" \"npm run backend\" \"npm run docs:watch\"",
     "frontend": "vite",
-    "backend": "npm start --prefix backend",
+    "backend": "npm run dev --prefix backend",
     "build": "vite build",
     "lint": "eslint .",
     "docs": "node scripts/syncDocs.cjs",

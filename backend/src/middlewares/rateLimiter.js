@@ -1,13 +1,19 @@
 const rateLimit = require('express-rate-limit');
 
+const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+
 /**
  * General API Limiter
  * Limits generic API usage per IP.
  */
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again after 15 minutes'
+    max: isDev ? 999999 : 300, // Effectively disabled in development
+    handler: (req, res) => {
+        res.status(429).json({
+            error: 'Too many requests from this IP, please try again after 15 minutes'
+        });
+    }
 });
 
 /**
@@ -16,8 +22,12 @@ const apiLimiter = rateLimit({
  */
 const aiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // Limit each IP to 10 AI generation requests per window
-    message: 'Too many AI generation requests from this IP, please try again after a while'
+    max: isDev ? 999999 : 180, // Effectively disabled in development
+    handler: (req, res) => {
+        res.status(429).json({
+            error: 'Too many AI generation requests from this IP, please try again after a while'
+        });
+    }
 });
 
 module.exports = {

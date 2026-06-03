@@ -31,14 +31,26 @@ class InterviewController {
       }
 
       // 3. Check if an interview already exists for this application
-      const existingInterview = await InterviewRepository.getExistingInterview(application_id);
+      let existingInterview = await InterviewRepository.getExistingInterview(application_id);
+
+      if (existingInterview) {
+        // Dev helper: If we are in development mode and the resumed interview has > 5 questions, delete it and start a clean session
+        const lastQuestion = await InterviewRepository.getLastGeneratedQuestion(existingInterview.interview_id);
+        const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+        if (isDev && lastQuestion && lastQuestion.sequence_number > 5) {
+          console.log(`[InterviewController] Dev Reset: deleting stale interview session (${existingInterview.interview_id}) to start fresh.`);
+          await InterviewRepository.deleteInterview(application_id);
+          existingInterview = null;
+        }
+      }
 
       if (existingInterview) {
         if (existingInterview.status === 'completed') {
           return res.status(209).json({
             error: 'You have already completed the interview for this application.',
             interview_id: existingInterview.interview_id,
-            status: 'completed'
+            status: 'completed',
+            finished: true
           });
         }
         
@@ -245,10 +257,10 @@ class InterviewController {
 
         // Determine result based on passing threshold
         const passingThreshold = interview.applications.jobs?.passing_threshold || 60;
-        const resultStatus = finalScorePercentage >= passingThreshold ? 'passed' : 'failed';
+        const resultStatus = finalScorePercentage >= passingThreshold ? 'pass' : 'fail';
 
         // Update interview status and application status atomically inside a transaction
-        const finalAppStatus = resultStatus === 'passed' ? 'accepted' : 'rejected';
+        const finalAppStatus = resultStatus === 'pass' ? 'accepted' : 'rejected';
         await InterviewRepository.finalizeInterviewAtomic(
           interviewId,
           interview.application_id,
@@ -304,9 +316,17 @@ class InterviewController {
       // 3. Fetch questions and answers for this interview
       const questions = await InterviewRepository.getQuestionsAndAnswers(interviewId);
 
-      // Format response
-      const breakdown = questions.map(q => {
-        const answer = q.answers && q.answers.length > 0 ? q.answers[0] : null;
+      // Format response and map answers (handling Supabase returning single object or array)
+      const mapped = questions.map(q => {
+        let answer = null;
+        if (q.answers) {
+          if (Array.isArray(q.answers)) {
+            answer = q.answers.length > 0 ? q.answers[0] : null;
+          } else {
+            answer = q.answers;
+          }
+        }
+
         return {
           question_id: q.question_id,
           question_text: q.question_text,
@@ -316,8 +336,29 @@ class InterviewController {
           candidate_response: answer ? answer.candidate_response : null,
           score: answer ? answer.score : 0,
           feedback: answer ? answer.ai_feedback : 'No response provided.',
-          time_taken_seconds: answer ? answer.time_taken_seconds : 0
+          time_taken_seconds: answer ? answer.time_taken_seconds : 0,
+          has_answer: !!answer
         };
+      });
+
+      // Filter duplicates by keeping the answered one if there are duplicates for a sequence_number
+      const filteredBreakdownMap = new Map();
+      for (const item of mapped) {
+        const seq = item.sequence_number;
+        if (!filteredBreakdownMap.has(seq)) {
+          filteredBreakdownMap.set(seq, item);
+        } else {
+          const existing = filteredBreakdownMap.get(seq);
+          if (item.has_answer && !existing.has_answer) {
+            filteredBreakdownMap.set(seq, item);
+          }
+        }
+      }
+
+      const breakdown = Array.from(filteredBreakdownMap.values()).map(item => {
+        const { ...copy } = item;
+        delete copy.has_answer;
+        return copy;
       });
 
       return res.json({

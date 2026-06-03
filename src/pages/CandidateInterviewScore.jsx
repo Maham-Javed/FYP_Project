@@ -89,7 +89,7 @@ const CandidateInterviewScore = () => {
   }
 
   const { interview, breakdown } = results || {};
-  const isPassed = interview?.result === 'passed';
+  const isPassed = interview?.result === 'pass' || interview?.result === 'passed';
   const overallScore = interview?.total_score || 0;
   const threshold = interview?.passing_threshold || 60;
 

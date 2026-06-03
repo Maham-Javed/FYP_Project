@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FcGoogle } from 'react-icons/fc';
 import { supabase } from '../supabaseClient';
 // HireSignup Component
 // This component handles the sign-up and sign-in process for recruiters.
@@ -74,7 +73,7 @@ const HireSignup = () => {
   }, [popupMessage, navigate]);
 
   return (
-    <div className="auth-container">
+    <div className="auth-container animated-gradient-bg" style={{ height: '100vh', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', position: 'relative' }}>
       {/* Toast Notification */}
       {popupMessage && (
         <div style={{
@@ -107,68 +106,96 @@ const HireSignup = () => {
         </div>
       )}
 
-      <div className="auth-card" style={{ position: 'relative' }}>
-        <div className="auth-header">
-          <h2>{isSignIn ? "Sign In" : "Sign Up"}</h2>
-          <p>Sign up/Sign in as a Recruiter</p>
+      <div className="auth-card" style={{ 
+        position: 'relative',
+        background: 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255, 255, 255, 0.6)',
+        borderRadius: '24px',
+        padding: '35px 40px',
+        width: '100%',
+        maxWidth: '460px',
+        boxShadow: '0 20px 40px rgba(31, 38, 135, 0.05)',
+        animation: 'slideInRight 0.5s ease-out forwards'
+      }}>
+        <div className="auth-header" style={{ marginBottom: '24px', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '6px' }}>
+            {isSignIn ? "Welcome Back" : "Sign Up"}
+          </h2>
+          <p style={{ fontSize: '13.5px', color: 'var(--text-light)', margin: 0 }}>
+            {isSignIn ? "Sign in to access your recruitment dashboard" : "Register as a Recruiter to hire top talent"}
+          </p>
         </div>
         
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           {!isSignIn && (
-            <div style={{ display: 'flex', gap: '15px' }}>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label>First Name</label>
-                <input name="firstName" onChange={handleChange} required type="text" className="form-input" placeholder="eg: John" />
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                <label style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '6px' }}>First Name</label>
+                <input name="firstName" onChange={handleChange} required type="text" className="form-input" placeholder="eg: John" style={{ padding: '10px 14px', fontSize: '13.5px', borderRadius: '8px' }} />
               </div>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label>Last Name</label>
-                <input name="lastName" onChange={handleChange} required type="text" className="form-input" placeholder="eg: Doe" />
+              <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                <label style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '6px' }}>Last Name</label>
+                <input name="lastName" onChange={handleChange} required type="text" className="form-input" placeholder="eg: Doe" style={{ padding: '10px 14px', fontSize: '13.5px', borderRadius: '8px' }} />
               </div>
             </div>
           )}
 
           {!isSignIn && (
-            <div className="form-group">
-              <label>Company</label>
-              <input name="company" onChange={handleChange} type="text" className="form-input" placeholder="eg: Unilever" />
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '6px' }}>Company</label>
+              <input name="company" onChange={handleChange} type="text" className="form-input" placeholder="eg: Unilever" style={{ padding: '10px 14px', fontSize: '13.5px', borderRadius: '8px' }} />
             </div>
           )}
           
-          <div className="form-group">
-            <label>Email</label>
-            <input name="email" onChange={handleChange} required type="email" className="form-input" placeholder="eg: johndoe@unilever.com" />
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '6px' }}>Email</label>
+            <input name="email" onChange={handleChange} required type="email" className="form-input" placeholder="eg: johndoe@unilever.com" style={{ padding: '10px 14px', fontSize: '13.5px', borderRadius: '8px' }} />
           </div>
           
-          <div className="form-group">
-            <label>Password</label>
-            <input name="password" onChange={handleChange} type="password" required className="form-input" placeholder="********" />
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '6px' }}>Password</label>
+            <input name="password" onChange={handleChange} type="password" required className="form-input" placeholder="********" style={{ padding: '10px 14px', fontSize: '13.5px', borderRadius: '8px' }} />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px' }}>
-            <button type="submit" className="btn-primary auth-btn">{isSignIn ? "Sign In" : "Sign Up"}</button>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
+            <button 
+              type="submit" 
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #4F46E5 0%, #8B5CF6 100%)',
+                color: '#FFFFFF',
+                border: 'none',
+                padding: '12px',
+                borderRadius: '10px',
+                fontWeight: '600',
+                fontSize: '15px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 15px rgba(79, 70, 229, 0.15)'
+              }}
+              onMouseEnter={(e) => { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 6px 20px rgba(79, 70, 229, 0.25)'; }}
+              onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 15px rgba(79, 70, 229, 0.15)'; }}
+            >
+              {isSignIn ? "Sign In" : "Create Account"}
+            </button>
           </div>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '15px' }}>
-          <span style={{ fontSize: '14px', color: '#666' }}>
+        <div style={{ textAlign: 'center', marginTop: '20px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '15px' }}>
+          <span style={{ fontSize: '13.5px', color: '#6B7280' }}>
             {isSignIn ? "Don't have an account? " : "Already have an account? "}
           </span>
           <button 
             type="button" 
             onClick={() => setIsSignIn(!isSignIn)} 
             style={{ 
-              background: 'none', border: 'none', color: '#6D28D9', 
-              fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', padding: 0
+              background: 'none', border: 'none', color: '#4F46E5', 
+              fontWeight: '700', cursor: 'pointer', fontSize: '13.5px', padding: 0
             }}
           >
-            {isSignIn ? "Sign Up" : "Sign In"}
-          </button>
-        </div>
-
-        <div className="auth-footer">
-          <div className="divider">OR</div>
-          <button className="google-btn">
-            <FcGoogle className="google-icon" /> Google
+            {isSignIn ? "Register Here" : "Sign In Here"}
           </button>
         </div>
       </div>

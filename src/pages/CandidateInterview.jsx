@@ -15,7 +15,7 @@ const CandidateInterview = () => {
   const [currentQuestionText, setCurrentQuestionText] = useState("");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(1);
   const [candidateResponse, setCandidateResponse] = useState("");
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+  const [timeLeft, setTimeLeft] = useState(180); // 3 minutes per question (15 mins / 5 questions)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -82,7 +82,21 @@ const CandidateInterview = () => {
         body: JSON.stringify({ application_id: application.id })
       });
 
-      const data = await response.json();
+      let data = {};
+      const responseText = await response.text();
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseErr) {
+        console.error("Failed to parse start response JSON:", responseText, parseErr);
+        if (!response.ok) {
+          if (response.status === 429) {
+            throw new Error("Too many requests. Please wait a moment and try again.");
+          }
+          throw new Error(`Server returned error status ${response.status}`);
+        }
+        throw new Error("Invalid response received from the server.");
+      }
+
       if (!response.ok) {
         // If interview is already finished
         if (response.status === 409 && data.status === 'completed') {
@@ -96,7 +110,7 @@ const CandidateInterview = () => {
       }
 
       setInterviewId(data.interview_id);
-      if (data.finished) {
+      if (data.finished || data.status === 'completed') {
         setFinished(true);
         navigate('/candidate-interview-score', { state: { interviewId: data.interview_id } });
       } else if (data.question) {
@@ -123,7 +137,7 @@ const CandidateInterview = () => {
         return;
       }
       const token = session.access_token;
-      const timeTaken = 300 - timeLeft;
+      const timeTaken = 180 - timeLeft;
       const finalResponse = isAuto ? responseRef.current : candidateResponse;
 
       const response = await fetch(`http://localhost:5000/api/interviews/${interviewId}/answer`, {
@@ -139,7 +153,21 @@ const CandidateInterview = () => {
         })
       });
 
-      const data = await response.json();
+      let data = {};
+      const responseText = await response.text();
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseErr) {
+        console.error("Failed to parse submit response JSON:", responseText, parseErr);
+        if (!response.ok) {
+          if (response.status === 429) {
+            throw new Error("Too many requests. Please wait a moment and try again.");
+          }
+          throw new Error(`Server returned error status ${response.status}`);
+        }
+        throw new Error("Invalid response received from the server.");
+      }
+
       if (!response.ok) {
         throw new Error(data.error || "Failed to submit answer.");
       }
@@ -156,7 +184,7 @@ const CandidateInterview = () => {
         setCurrentQuestionText(data.nextQuestion.question_text);
         setCurrentQuestionIndex(data.nextQuestion.sequence_number);
         setCandidateResponse("");
-        setTimeLeft(300);
+        setTimeLeft(180);
         setIsSubmitting(false);
       }
     } catch (err) {

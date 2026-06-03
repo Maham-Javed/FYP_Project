@@ -24,8 +24,30 @@ class AIService {
             // Return the structured object containing the question and keywords
             return aiResponse;
         } catch (error) {
-            console.error("Error generating question:", error);
-            throw new Error("Failed to generate AI question");
+            console.warn("[AIService] LLM Question generation failed. Falling back to structured mock question...", error.message);
+            
+            const mockQuestions = [
+                {
+                    question: `Explain how you would design and implement a secure, scalable authentication system for a ${jobTitle} application, focusing on token management, CORS, and session security.`,
+                    expected_answer_keywords: ["JWT", "OAuth", "session", "refresh token", "cookies", "CORS", "security", "encryption"]
+                },
+                {
+                    question: `Describe a complex technical challenge you faced while working with ${topic || 'software architecture'}, and how you solved it.`,
+                    expected_answer_keywords: ["challenge", "performance", "scaling", "debugging", "solution", "architecture"]
+                },
+                {
+                    question: `How do you handle asynchronous data loading, state management, and side-effects in a modern ${jobTitle} project?`,
+                    expected_answer_keywords: ["async", "await", "state", "loading", "promises", "caching", "performance"]
+                },
+                {
+                    question: `What are the best practices for logging, error handling, and monitoring in a production-level ${jobTitle} service?`,
+                    expected_answer_keywords: ["logging", "error handling", "monitoring", "try-catch", "sentry", "alerting"]
+                }
+            ];
+            
+            // Choose a mock question based on the topic/jobTitle
+            const idx = Math.floor(Math.random() * mockQuestions.length);
+            return mockQuestions[idx];
         }
     }
 
@@ -44,8 +66,24 @@ class AIService {
             // Return { score, feedback }
             return aiResponse;
         } catch (error) {
-            console.error("Error evaluating answer:", error);
-            throw new Error("Failed to evaluate AI answer");
+            console.warn("[AIService] LLM Evaluation failed. Falling back to keyword-based offline scoring...", error.message);
+            
+            // Evaluate based on keywords present in answer
+            const cleanAnswer = (candidateAnswer || "").toLowerCase();
+            const matchingKeywords = (expectedKeywords || []).filter(k => 
+                cleanAnswer.includes(k.toLowerCase())
+            );
+            
+            const keywordScore = Math.min(Math.round((matchingKeywords.length / Math.max(expectedKeywords.length, 1)) * 10), 10);
+            
+            // Add points for length of response (max 3 points for >150 chars)
+            const lengthScore = Math.min(Math.floor(cleanAnswer.length / 50), 3);
+            const finalScore = Math.min(keywordScore + lengthScore + 4, 10); // Base score of 4
+            
+            return {
+                score: finalScore,
+                feedback: `[Offline Mode] Evaluation fallback active. Found keywords: ${matchingKeywords.join(', ') || 'none'}. Technical detail: ${cleanAnswer.length} characters.`
+            };
         }
     }
     

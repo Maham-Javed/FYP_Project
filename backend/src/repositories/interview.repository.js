@@ -341,6 +341,52 @@ class InterviewRepository {
 
     if (error) throw new Error(`Failed to atomically finalize interview: ${error.message}`);
   }
+
+  /**
+   * Delete an existing interview session and its child questions/answers,
+   * resetting application status to 'applied'.
+   * @param {string} applicationId - Application UUID
+   */
+  static async deleteInterview(applicationId) {
+    const { data: interview } = await supabaseAdmin
+      .from('interviews')
+      .select('interview_id')
+      .eq('application_id', applicationId)
+      .single();
+
+    if (!interview) return;
+
+    const interviewId = interview.interview_id;
+
+    // Find and delete answers
+    const { data: questions } = await supabaseAdmin
+      .from('questions')
+      .select('question_id')
+      .eq('interview_id', interviewId);
+
+    if (questions && questions.length > 0) {
+      const questionIds = questions.map(q => q.question_id);
+      await supabaseAdmin
+        .from('answers')
+        .delete()
+        .in('question_id', questionIds);
+      
+      await supabaseAdmin
+        .from('questions')
+        .delete()
+        .eq('interview_id', interviewId);
+    }
+
+    await supabaseAdmin
+      .from('interviews')
+      .delete()
+      .eq('interview_id', interviewId);
+      
+    await supabaseAdmin
+      .from('applications')
+      .update({ status: 'selected_for_interview' })
+      .eq('application_id', applicationId);
+  }
 }
 
 module.exports = InterviewRepository;
