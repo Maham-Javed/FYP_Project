@@ -35,6 +35,21 @@ class EmbeddingService {
   // ═══════════════════════════════════════════════════════════════
 
   /**
+   * Pre-warm the embedding model by loading it into RAM on server startup.
+   */
+  static async initialize() {
+    if (!extractor) {
+      console.log("[EmbeddingService] Pre-warming local embedding pipeline (Xenova/bge-small-en-v1.5)...");
+      try {
+        extractor = await pipeline('feature-extraction', 'Xenova/bge-small-en-v1.5');
+        console.log("[EmbeddingService] Pipeline pre-warmed successfully. AI is ready.");
+      } catch (e) {
+        console.error("[EmbeddingService] Failed to pre-warm pipeline:", e);
+      }
+    }
+  }
+
+  /**
    * Generate and store an embedding for a job description.
    * Skips regeneration if the description text hasn't changed.
    *

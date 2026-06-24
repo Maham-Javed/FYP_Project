@@ -34,8 +34,8 @@ backend/
 │   │   ├── interview.routes.js       # Secured candidate interview endpoints
 │   │   └── interview.validation.js   # Declarative Zod schemas (New)
 │   ├── services/
-│   │   ├── aiService.js              # Interview AI (question generation, answer evaluation)
-│   │   ├── embedding.service.js      # Vector embedding generation & storage (HuggingFace)
+│   │   ├── aiService.js              # Interview AI (Groq API wrapper with deterministic offline fallbacks)
+│   │   ├── embedding.service.js      # Vector embedding generation (Local Xenova/transformers)
 │   │   └── matching.service.js       # Semantic similarity engine & threshold logic
 │   └── utils/
 │       ├── llmClient.js              # LLM provider wrapper (Groq/OpenAI)
@@ -151,8 +151,9 @@ static async startInterviewAtomic(applicationId, initialDifficulty) {
 The AI integrations are strictly encapsulated within the **`services/`** layer to maintain separation of concerns.
 
 ### 4a. Embedding Service (`services/embedding.service.js`)
-- **Model**: `BAAI/bge-small-en-v1.5` (384 dimensions)
-- **Features**: MD5 text content hashing, caching layers, and exponential backoff loops protecting against API rate-limits.
+- **Model**: `Xenova/bge-small-en-v1.5` (384 dimensions)
+- **Deployment**: Runs completely locally using `@xenova/transformers`, avoiding 3rd-party latency and cold starts.
+- **Features**: Boot-time pre-warming to load the model into RAM instantly on server start, MD5 text content hashing, and caching layers.
 
 ### 4b. Matching Service (`services/matching.service.js`)
 - **Algorithm**: Cosine similarity via pgvector's `<=>` operator.
@@ -160,7 +161,7 @@ The AI integrations are strictly encapsulated within the **`services/`** layer t
 
 ### 4c. Interview AI (`services/aiService.js`)
 - **Provider**: Groq API (LLM inference)
-- **Purpose**: Renders dynamic prompt parameters, executes adaptive interview question selection, and evaluates answers.
+- **Resilience**: Features robust `try/catch` fallbacks. If the Groq API hits rate limits or goes down, it safely falls back to a deterministic, keyword-matching offline scoring system and hardcoded backup questions.
 
 ---
 

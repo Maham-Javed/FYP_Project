@@ -53,6 +53,13 @@ Asynchronous resume parsing E.g., returns JSON representation of skills, educati
 
 
 ## 2. EmbeddingService (Vector Generation & Hashing)
+### 📌 `initialize()`
+
+Pre-warm the embedding model by loading it into RAM on server startup.
+
+---
+
+
 ### 📌 `generateJobEmbedding(jobId, description)`
 
 Generate and store an embedding for a job description. Skips regeneration if the description text hasn't changed.
@@ -249,4 +256,4 @@ Find the best matching candidates for a specific job. Useful for the recruiter d
 
 
 ---
-*Note: This documentation was dynamically synchronized with class structures on 6/24/2026, 8:21:48 PM.*
+*Note: This documentation was dynamically synchronized with class structures on 6/24/2026, 8:52:25 PM.*

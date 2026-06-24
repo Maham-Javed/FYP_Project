@@ -217,7 +217,7 @@ CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
 - **Schema**: public
 
 ### Vector Dimensions
-Both embedding columns use **384 dimensions**, matching the `BAAI/bge-small-en-v1.5` model output from the HuggingFace Inference API (free tier).
+Both embedding columns use **384 dimensions**, matching the `Xenova/bge-small-en-v1.5` model output from the local transformers pipeline.
 
 ### HNSW Indexes
 High-performance indexes for sub-linear cosine similarity search:
@@ -229,8 +229,12 @@ High-performance indexes for sub-linear cosine similarity search:
 
 ### SQL Functions (Stored Procedures)
 
+**Note on Enum Casting:** When passing dynamic `text` parameters to PL/pgSQL functions that update `enum` columns (like `application_status` or `interview_result`), PostgreSQL requires explicit casting (e.g., `p_final_app_status::application_status`).
+
 | Function | Purpose | Returns |
 |----------|---------|---------|
+| `start_interview_atomic(p_application_id, p_initial_difficulty)` | Safely creates an interview and sets app status to `interviewing` | Single row of `interviews` |
+| `finalize_interview_atomic(p_interview_id, p_application_id, p_total_score, p_result_status, p_final_app_status)` | Updates interview metrics and finalizes application status | void |
 | `match_candidate_to_job(candidate_id, job_id)` | 1:1 cosine similarity between a specific candidate and job | `similarity_score`, `similarity_percentage`, `meets_threshold`, `job_threshold` |
 | `find_matching_jobs(candidate_id, limit)` | Top-N jobs ranked by similarity to a candidate's profile | Ranked job list with scores and threshold flags |
 | `find_matching_candidates(job_id, limit)` | Top-N candidates ranked by similarity to a job description | Ranked candidate list with scores and threshold flags |
@@ -254,7 +258,7 @@ The `<=>` operator in pgvector computes **cosine distance**. Subtracting from 1 
    
 2. **Candidate Applies to Job (AI Matching Pipeline):**
    - A row is created in `applications` linking `candidate_id` and `job_id` (status: `pending`).
-   - The `EmbeddingService` ensures both embeddings exist (generating any missing ones via HuggingFace API).
+   - The `EmbeddingService` ensures both embeddings exist (generating any missing ones locally via Xenova).
    - The `MatchingService` calls `match_candidate_to_job()` in Postgres.
    - If `match_score >= similarity_threshold`: status → `selected_for_interview`.
    - If `match_score < similarity_threshold`: status → `rejected`.
@@ -265,7 +269,7 @@ The `<=>` operator in pgvector computes **cosine distance**. Subtracting from 1 
    - An `interviews` record is initialized.
    - The AI generates a set of `questions` mapped to the interview.
    - The candidate submits `answers`, which the AI scores dynamically.
-   - The total score aggregates in `interviews`, and the result is finalized (`'pass'` or `'fail'`).
+   - The total score aggregates in `interviews`, and the result is finalized (`'pass'` or `'fail'`). The application status updates to `'under_review'` (if pass) or `'rejected'` (if fail).
 
 ---
 
@@ -289,7 +293,7 @@ The `<=>` operator in pgvector computes **cosine distance**. Subtracting from 1 
 - **UUIDs over Auto-Incrementing Integers**: Prevents predictable enumeration of resources (security) and scales seamlessly across distributed systems.
 - **Supabase & Postgres**: Selected for native Row Level Security (RLS), real-time capabilities, and `pgvector` for our ML/AI pipeline.
 - **Strict Normalization (1NF - 3NF)**: Prevents data anomalies. `questions` and `answers` are decoupled to ensure scoring logic and question generation can happen asynchronously without locking table rows.
-- **384 Dimensions (not 1536)**: Uses the free HuggingFace model `BAAI/bge-small-en-v1.5` which outputs 384 dimensions. This is sufficient for FYP-scale data and enables faster similarity computation.
+- **384 Dimensions (not 1536)**: Uses the local Xenova model `Xenova/bge-small-en-v1.5` which outputs 384 dimensions. This is sufficient for FYP-scale data and completely avoids cloud-based API cold starts.
 - **HNSW Indexes (not IVFFlat)**: HNSW provides better recall at small-to-medium data sizes and requires no training step.
 - **Content Hash Deduplication**: The `embedding_text_hash` columns store an MD5 of the normalized text to avoid costly re-embedding API calls when content hasn't changed.
 

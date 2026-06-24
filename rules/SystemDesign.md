@@ -93,9 +93,9 @@ flowchart TD
   - Completely separates direct SQL/Supabase operations from REST controllers.
 
 ### 4. AI Service Layer
-- **Embedding Service**: Generates dense 384-dimensional vector embeddings using HuggingFace Inference API (`BAAI/bge-small-en-v1.5`). Implements content-hashing (MD5) to avoid duplicate API requests.
+- **Embedding Service**: Generates dense 384-dimensional vector embeddings locally using `@xenova/transformers` (`Xenova/bge-small-en-v1.5`), eliminating API latency. Implements content-hashing (MD5) to avoid redundant CPU operations, and is pre-warmed on server boot.
 - **Matching Engine**: Coordinates cosine similarity via Postgres pgvector operators, automatically updating application workflow flags.
-- **Interview AI (Groq API)**: Orchestrates adaptive question prompts and parses technical feedback scores (0-10) using fast LLM inference engines.
+- **Interview AI (Groq API)**: Orchestrates adaptive question prompts and parses technical feedback scores using fast LLM inference engines, backed by offline deterministic algorithms during outages.
 
 ---
 
@@ -121,9 +121,8 @@ sequenceDiagram
     
     alt Hash changed or missing
         ES->>DB: Fetch job/profile text
-        ES->>ES: normalizeText() → hashText()
-        ES->>HF: POST /models/BAAI/bge-small-en-v1.5
-        HF-->>ES: vector(384)
+        ES->>ES: normalizeText() -> hashText()
+        ES->>ES: local Xenova Model(bge-small-en-v1.5)
         ES->>DB: UPDATE embedding + hash
     else Hash unchanged
         ES-->>MS: cached: true
@@ -207,7 +206,7 @@ sequenceDiagram
 | **Zod Boot Env Validator** | Ensures no missing configs or invalid API credentials trigger cryptic server failures. |
 | **hrtime Performance Logger** | In-house microsecond request audit tracker mapping request pipeline latency. |
 | **Atomic SQL Transactions** | Encapsulates sequential mutations inside PG pl/pgsql functions to guarantee database consistency. |
-| **Embedding Deduplication** | MD5 content hash prevents redundant HuggingFace API calls when text unchanged. |
+| **Embedding Deduplication & Pre-warming** | MD5 content hashing combined with boot-time pre-warming guarantees 0 API latency and saves CPU cycles. |
 | **HNSW Indexes** | Sub-linear vector search on both `job_embedding` and `profile_embedding` using HNSW graphs. |
 | **Pre-generated Embeddings** | Embeddings generated when jobs are created/updated, not during application. |
 | **Cached Vectors** | During application, stored embeddings are reused — no API call needed. |
