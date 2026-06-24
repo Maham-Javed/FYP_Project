@@ -24,6 +24,7 @@ const CandidateInterview = () => {
 
   const totalQuestions = 5;
   const responseRef = useRef(candidateResponse);
+  const initializedRef = useRef(false);
 
   // Sync response text to ref to prevent stale closure in timer callback
   useEffect(() => {
@@ -38,7 +39,10 @@ const CandidateInterview = () => {
       return;
     }
 
-    startInterviewSession();
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      startInterviewSession();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

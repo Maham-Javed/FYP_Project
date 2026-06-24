@@ -24,7 +24,8 @@ const CandidateJobDetail = () => {
     
     // Load candidate data
     const loadUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (user) {
         const fullName = user.user_metadata?.name || 'Candidate User';
         const parts = fullName.split(' ');
@@ -33,6 +34,8 @@ const CandidateJobDetail = () => {
           lastName: parts.slice(1).join(' ') || '',
           email: user.email
         });
+      } else {
+        navigate('/');
       }
     };
     loadUser();

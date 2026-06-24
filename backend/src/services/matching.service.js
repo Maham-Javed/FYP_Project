@@ -51,9 +51,9 @@ class MatchingService {
       const jobThreshold = matchResult.job_threshold;
 
       // 3. Apply Decision Logic
-      // If score > 60: status = 'shortlisted for interview'
+      // If score > 60: status = 'selected_for_interview'
       // Else: status = 'rejected'
-      const newStatus = matchPercentage > 60 ? 'shortlisted for interview' : 'rejected';
+      const newStatus = matchPercentage > 60 ? 'selected_for_interview' : 'rejected';
 
       console.log(`[MatchingService] Match Score: ${matchPercentage}% (Threshold: ${jobThreshold}%) -> ${newStatus}`);
 

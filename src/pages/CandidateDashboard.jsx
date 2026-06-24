@@ -31,7 +31,8 @@ const CandidateDashboard = () => {
   useEffect(() => {
     const loadData = async () => {
       // 1. Get logged-in user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (user) {
         const fullName = user.user_metadata?.name || 'Candidate User';
         const parts = fullName.split(' ');
@@ -40,6 +41,8 @@ const CandidateDashboard = () => {
           lastName: parts.slice(1).join(' ') || '',
           email: user.email
         });
+      } else {
+        navigate('/');
       }
 
       // 2. Load all available jobs

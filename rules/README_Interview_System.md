@@ -112,4 +112,4 @@ Parse and score a candidate's answer
 
 
 ---
-*Note: This documentation was dynamically synchronized with class structures on 6/22/2026, 9:21:18 AM.*
+*Note: This documentation was dynamically synchronized with class structures on 6/24/2026, 8:21:48 PM.*

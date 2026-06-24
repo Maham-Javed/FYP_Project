@@ -15,7 +15,8 @@ const CandidateAppliedJobs = () => {
   useEffect(() => {
     const loadData = async () => {
       // 1. Get logged-in user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (user) {
         const fullName = user.user_metadata?.name || 'Candidate User';
         const parts = fullName.split(' ');
@@ -90,6 +91,8 @@ const CandidateAppliedJobs = () => {
              setApplications(frontendApps);
           }
         }
+      } else {
+        navigate('/');
       }
     };
     

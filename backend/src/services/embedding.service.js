@@ -16,6 +16,7 @@
 
 const crypto = require('crypto');
 const { supabaseAdmin } = require('../config/supabase');
+const { pipeline } = require('@xenova/transformers');
 
 // ─── Configuration ───────────────────────────────────────────────
 const HF_API_URL = 'https://router.huggingface.co/hf-inference/models/BAAI/bge-small-en-v1.5';
@@ -24,6 +25,8 @@ const EMBEDDING_DIMENSIONS = 384;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1500;
 const MAX_INPUT_CHARS = 2000; // bge-small-en-v1.5 has 512 token limit; ~2000 chars is safe
+
+let extractor = null;
 
 class EmbeddingService {
 
@@ -237,80 +240,34 @@ class EmbeddingService {
    * @private
    */
   static async _generateEmbedding(text) {
-    if (!HF_TOKEN) {
-      throw new Error(
-        'HF_API_TOKEN is not set. Please add your HuggingFace API token to backend/.env'
-      );
+    if (!extractor) {
+      console.log("[EmbeddingService] Initializing local embedding pipeline (Xenova/bge-small-en-v1.5)...");
+      extractor = await pipeline('feature-extraction', 'Xenova/bge-small-en-v1.5');
     }
 
     // Truncate text to stay within model's token window
     const truncatedText = text.substring(0, MAX_INPUT_CHARS);
 
-    let lastError = null;
+    try {
+      // Generate the embedding vector
+      const output = await extractor(truncatedText, { pooling: 'mean', normalize: true });
+      
+      // Convert Float32Array to standard JS Array
+      const embedding = Array.from(output.data);
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const response = await fetch(HF_API_URL, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${HF_TOKEN}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            inputs: truncatedText,
-            options: { wait_for_model: true } // Handle cold starts on free tier
-          })
-        });
-
-        // Handle rate limiting (429) with retry
-        if (response.status === 429) {
-          const retryAfter = parseInt(response.headers.get('retry-after') || '5', 10);
-          console.warn(`[EmbeddingService] Rate limited. Retrying in ${retryAfter}s (attempt ${attempt}/${MAX_RETRIES})`);
-          await this._sleep(retryAfter * 1000);
-          continue;
-        }
-
-        // Handle model loading (503) with retry
-        if (response.status === 503) {
-          const body = await response.json().catch(() => ({}));
-          const estimatedTime = body.estimated_time || 20;
-          console.warn(`[EmbeddingService] Model loading. Waiting ${estimatedTime}s (attempt ${attempt}/${MAX_RETRIES})`);
-          await this._sleep(estimatedTime * 1000);
-          continue;
-        }
-
-        if (!response.ok) {
-          const errorBody = await response.text();
-          throw new Error(`HuggingFace API error (${response.status}): ${errorBody}`);
-        }
-
-        const result = await response.json();
-
-        // The API returns a nested array for single input: [[0.1, 0.2, ...]]
-        // or a flat array depending on the model; handle both cases
-        const embedding = Array.isArray(result[0]) ? result[0] : result;
-
-        // Validate dimension
-        if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMENSIONS) {
-          throw new Error(
-            `Unexpected embedding dimensions: expected ${EMBEDDING_DIMENSIONS}, got ${Array.isArray(embedding) ? embedding.length : 'non-array'}`
-          );
-        }
-
-        return embedding;
-
-      } catch (error) {
-        lastError = error;
-        console.error(`[EmbeddingService] Attempt ${attempt}/${MAX_RETRIES} failed:`, error.message);
-
-        if (attempt < MAX_RETRIES) {
-          // Exponential backoff: 1.5s, 3s, 4.5s
-          await this._sleep(RETRY_DELAY_MS * attempt);
-        }
+      // Validate dimension
+      if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMENSIONS) {
+        throw new Error(
+          `Unexpected embedding dimensions: expected ${EMBEDDING_DIMENSIONS}, got ${Array.isArray(embedding) ? embedding.length : 'non-array'}`
+        );
       }
-    }
 
-    throw new Error(`Embedding generation failed after ${MAX_RETRIES} attempts: ${lastError?.message}`);
+      return embedding;
+
+    } catch (error) {
+      console.error(`[EmbeddingService] Local embedding generation failed:`, error.message);
+      throw new Error(`Embedding generation failed: ${error?.message}`);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════

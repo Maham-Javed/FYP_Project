@@ -18,6 +18,7 @@ const CandidateJobApply = () => {
   const [cvFilename, setCvFilename] = useState('');
   const [isApplying, setIsApplying] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [applyResult, setApplyResult] = useState(null);
 
   useEffect(() => {
     if (!job) {
@@ -26,7 +27,8 @@ const CandidateJobApply = () => {
     }
 
     const loadUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (user) {
         const parts = (user.user_metadata?.name || '').split(' ');
         setFormData(prev => ({
@@ -35,6 +37,8 @@ const CandidateJobApply = () => {
           lastName: parts.slice(1).join(' ') || '',
           email: user.email || ''
         }));
+      } else {
+        navigate('/');
       }
     };
     loadUser();
@@ -56,12 +60,17 @@ const CandidateJobApply = () => {
     setIsApplying(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) throw new Error("Must be logged in to apply");
 
-      // Get candidate ID
-      const { data: candData } = await supabase.from('candidates').select('candidate_id').eq('user_id', user.id).single();
-      if (!candData) throw new Error("Candidate profile not found");
+      // Get candidate ID, or create profile if not found
+      let { data: candData } = await supabase.from('candidates').select('candidate_id').eq('user_id', user.id).single();
+      if (!candData) {
+        const { data: newCand, error: insertError } = await supabase.from('candidates').insert([{ user_id: user.id }]).select('candidate_id').single();
+        if (insertError) throw new Error("Failed to create candidate profile");
+        candData = newCand;
+      }
 
       let resumeUrl = null;
       if (cvFile) {
@@ -97,8 +106,8 @@ Experience: 3 years of relevant experience in web development.`;
       }
 
       // Fetch user session token for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const token = currentSession?.access_token;
 
       if (!token) throw new Error("No active session found");
 
@@ -134,10 +143,11 @@ Experience: 3 years of relevant experience in web development.`;
         throw new Error(applyData.error || 'Failed to apply via backend.');
       }
 
+      setApplyResult(applyData.application);
       setShowToast(true);
       setTimeout(() => {
-        navigate('/candidate-dashboard');
-      }, 3000);
+        navigate('/candidate-applied-jobs');
+      }, 5000);
 
     } catch (err) {
       alert("Error applying: " + err.message);
@@ -165,7 +175,14 @@ Experience: 3 years of relevant experience in web development.`;
           </div>
           <div style={{ flex: 1 }}>
             <h4 style={{ margin: 0, color: '#111', fontSize: '15px', fontWeight: 'bold' }}>Application Sent</h4>
-            <p style={{ margin: '2px 0 0', color: '#4B5563', fontSize: '14px' }}>Redirecting to dashboard...</p>
+            {applyResult ? (
+              <p style={{ margin: '2px 0 0', color: applyResult.match_score >= applyResult.threshold ? '#059669' : '#DC2626', fontSize: '14px', fontWeight: '500' }}>
+                Match Score: {applyResult.match_score}% 
+                {applyResult.status === 'selected_for_interview' ? ' - Shortlisted!' : ' - Not Selected'}
+              </p>
+            ) : (
+              <p style={{ margin: '2px 0 0', color: '#4B5563', fontSize: '14px' }}>Redirecting...</p>
+            )}
           </div>
         </div>
       )}
