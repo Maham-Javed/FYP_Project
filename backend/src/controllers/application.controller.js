@@ -488,6 +488,61 @@ class ApplicationController {
       return res.status(500).json({ error: 'Failed to fetch top candidates.' });
     }
   }
+  /**
+   * PATCH /api/applications/status/:applicationId
+   *
+   * Recruiter updates the status of an application (e.g. accepted, rejected).
+   *
+   * Auth: Requires authenticated recruiter who owns the job
+   */
+  static async updateApplicationStatus(req, res) {
+    try {
+      const userId = req.user.id;
+      const { applicationId } = req.params;
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ error: 'Status is required.' });
+      }
+
+      // Verify recruiter owns the job associated with this application
+      const { data: recruiter } = await supabaseAdmin
+        .from('recruiters')
+        .select('recruiter_id')
+        .eq('user_id', userId)
+        .single();
+
+      if (!recruiter) {
+        return res.status(403).json({ error: 'Recruiter profile not found.' });
+      }
+
+      const { data: application } = await supabaseAdmin
+        .from('applications')
+        .select('job_id, jobs(recruiter_id)')
+        .eq('application_id', applicationId)
+        .single();
+
+      if (!application || application.jobs?.recruiter_id !== recruiter.recruiter_id) {
+        return res.status(403).json({ error: 'You do not have permission to update this application.' });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('applications')
+        .update({ status })
+        .eq('application_id', applicationId)
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Failed to update application status: ${error.message}`);
+      }
+
+      return res.json({ message: 'Application status updated successfully', application: data });
+    } catch (error) {
+      console.error('[ApplicationController] Update status error:', error);
+      return res.status(500).json({ error: 'Failed to update application status.' });
+    }
+  }
 }
 
 module.exports = ApplicationController;

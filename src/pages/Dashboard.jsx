@@ -36,7 +36,7 @@ const Dashboard = () => {
                 const { data: acceptedData } = await supabase.from('applications')
                   .select('application_id')
                   .eq('job_id', job.job_id)
-                  .ilike('status', 'accepted');
+                  .eq('status', 'accepted');
                 const accepted = acceptedData ? acceptedData.length : 0;
                 
                 // top scorer

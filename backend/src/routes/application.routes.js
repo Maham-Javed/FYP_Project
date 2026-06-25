@@ -108,6 +108,17 @@ router.get(
 // ═══════════════════════════════════════════════════════════════
 
 /**
+ * PATCH /api/applications/status/:applicationId
+ * Update application status (e.g. accepted, rejected)
+ */
+router.patch(
+  '/status/:applicationId',
+  verifyAuth,
+  requireRole('recruiter'),
+  ApplicationController.updateApplicationStatus
+);
+
+/**
  * GET /api/applications/status/:applicationId
  * Get detailed status and match results for a specific application.
  * Ownership is validated inside the controller.

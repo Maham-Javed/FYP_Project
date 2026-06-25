@@ -60,8 +60,9 @@ const CandidateAppliedJobs = () => {
                if (dbStatus === 'pending') return 'Applied';
                if (dbStatus === 'selected_for_interview' || dbStatus === 'shortlisted for interview' || dbStatus === 'interviewing') return 'Shortlisted';
                if (dbStatus === 'Passed the interview') return 'Passed the interview';
-               if (dbStatus === 'Accepted' || dbStatus === 'accepted') return 'Accepted';
-               if (dbStatus === 'Rejected' || dbStatus === 'rejected') return 'Rejected';
+               if (dbStatus === 'Accepted' || dbStatus === 'accepted') return 'Accepted by recruiter';
+               if (dbStatus === 'Rejected' || dbStatus === 'rejected') return 'Rejected by the recruiter';
+               if (dbStatus === 'under_review') return 'Under Review';
                return dbStatus || 'Applied';
              };
 
@@ -128,10 +129,11 @@ const CandidateAppliedJobs = () => {
   const getStatusColor = (status) => {
     const s = status.toLowerCase();
     if (s === 'applied') return { bg: '#FEF08A', col: '#854D0E' }; // Yellow
-    if (s === 'accepted') return { bg: '#D1FAE5', col: '#065F46' }; // Green
-    if (s === 'rejected') return { bg: '#FEE2E2', col: '#DC2626' }; // Red (Trendy Red)
+    if (s === 'accepted by recruiter' || s === 'accepted') return { bg: '#D1FAE5', col: '#065F46' }; // Green
+    if (s === 'rejected by the recruiter' || s === 'rejected') return { bg: '#FEE2E2', col: '#DC2626' }; // Red (Trendy Red)
     if (s === 'shortlisted') return { bg: '#ECFDF5', col: '#059669' }; // Emerald Green
     if (s === 'passed the interview') return { bg: '#D1FAE5', col: '#065F46' }; // Emerald Green
+    if (s === 'under review' || s === 'under_review') return { bg: '#EFF6FF', col: '#1D4ED8' }; // Blue
     return { bg: '#F1F5F9', col: '#475569' }; // Grey fallback
   };
 

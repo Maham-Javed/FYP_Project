@@ -308,23 +308,27 @@ const Candidates = () => {
                     let badgeBg = '#F1F5F9';
                     let badgeColor = '#475569';
                     let badgeBorder = '#E2E8F0';
+                    let displayStatus = cand.status || 'Applied';
 
-                    if (['accepted', 'hired', 'passed the interview', 'passed', 'pass'].includes(statusLower)) {
+                    if (['accepted', 'hired', 'passed the interview', 'passed', 'pass', 'accepted by recruiter'].includes(statusLower)) {
                       badgeBg = '#ECFDF5';
                       badgeColor = '#047857';
                       badgeBorder = '#A7F3D0';
-                    } else if (['rejected', 'failed', 'fail'].includes(statusLower)) {
+                      if (statusLower === 'accepted') displayStatus = 'Accepted by recruiter';
+                    } else if (['rejected', 'failed', 'fail', 'rejected by the recruiter'].includes(statusLower)) {
                       badgeBg = '#FEF2F2';
                       badgeColor = '#B91C1C';
                       badgeBorder = '#FCA5A5';
+                      if (statusLower === 'rejected') displayStatus = 'Rejected by the recruiter';
                     } else if (['interviewing', 'shortlisted', 'shortlisted for interview', 'scheduled'].includes(statusLower)) {
                       badgeBg = '#EEF2FF';
                       badgeColor = '#4338CA';
                       badgeBorder = '#C7D2FE';
-                    } else if (['applied', 'pending'].includes(statusLower)) {
+                    } else if (['applied', 'pending', 'under_review', 'under review'].includes(statusLower)) {
                       badgeBg = '#EFF6FF';
                       badgeColor = '#1D4ED8';
                       badgeBorder = '#BFDBFE';
+                      if (statusLower === 'under_review') displayStatus = 'Under Review';
                     }
 
                     return (
@@ -364,7 +368,7 @@ const Candidates = () => {
                             color: badgeColor,
                             border: `1px solid ${badgeBorder}`
                           }}>
-                            {cand.status}
+                            {displayStatus}
                           </span>
                         </td>
                       </tr>

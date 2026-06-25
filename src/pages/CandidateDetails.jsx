@@ -48,7 +48,7 @@ const CandidateDetails = () => {
           if (data.status) {
             const statLower = data.status.toLowerCase();
             if (statLower === 'accepted' || statLower === 'rejected') {
-              setDecisionStatus(statLower === 'accepted' ? 'Accepted' : 'Rejected');
+              setDecisionStatus(statLower === 'accepted' ? 'Accepted by recruiter' : 'Rejected by the recruiter');
             }
           }
 
@@ -115,22 +115,31 @@ const CandidateDetails = () => {
   const interviewScore = dbInterviewScore ? Number(dbInterviewScore).toFixed(1) : '0.0';
 
   const handleAction = async (action) => {
-    const newStatus = action === 'accept' ? 'Accepted' : 'Rejected';
+    const dbStatus = action === 'accept' ? 'accepted' : 'rejected';
+    const displayStatus = action === 'accept' ? 'Accepted by recruiter' : 'Rejected by the recruiter';
     try {
-      const { error } = await supabase
-        .from('applications')
-        .update({ status: newStatus })
-        .eq('application_id', cand.applicationId);
-        
-      if (error) {
-        console.error("Error updating application status:", error);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      const response = await fetch(`http://localhost:5000/api/applications/status/${cand.applicationId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: dbStatus })
+      });
+      
+      if (!response.ok) {
+        const errData = await response.json();
+        console.error("Error updating application status:", errData.error);
         return;
       }
       
-      setDecisionStatus(newStatus);
+      setDecisionStatus(displayStatus);
       const msg = action === 'accept'
-        ? `${cand.name} is accepted`
-        : `${cand.name} is rejected`;
+        ? `${cand.name} is accepted by recruiter`
+        : `${cand.name} is rejected by the recruiter`;
       setPopupMessage(msg);
     } catch (err) {
       console.error(err);
@@ -308,10 +317,10 @@ const CandidateDetails = () => {
           {decisionStatus ? (
             <div style={{ 
               padding: '12px 30px', borderRadius: '12px', background: '#F1F5F9', 
-              color: decisionStatus === 'Accepted' ? '#10B981' : '#EF4444', 
-              fontWeight: '700', fontSize: '14.5px', border: `1px solid ${decisionStatus === 'Accepted' ? '#10B981' : '#EF4444'}`
+              color: decisionStatus === 'Accepted by recruiter' ? '#10B981' : '#EF4444', 
+              fontWeight: '700', fontSize: '14.5px', border: `1px solid ${decisionStatus === 'Accepted by recruiter' ? '#10B981' : '#EF4444'}`
             }}>
-              {cand.name} is {decisionStatus.toLowerCase()}
+              {decisionStatus}
             </div>
           ) : (
             <>
